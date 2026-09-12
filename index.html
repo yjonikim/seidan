@@ -77,7 +77,7 @@ td.num{text-align:right}
 .pillar .gan,.pillar .zhi{font-size:1.9rem;line-height:1.25;font-weight:700}
 .pillar .hide{font-size:.75rem;color:var(--ink-faded);margin-top:.4rem}
 .daymaster .gan{color:var(--seal)}
-.bazimeta{font-size:.88rem;color:var(--ink-faded)}
+.bazimeta{font-size:.88rem;color:var(--ink-faded);white-space:pre-line}
 /* ---- ZWDS: traditional 4x4 palace sheet ---- */
 .zwgrid{
   display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,auto);
@@ -160,12 +160,13 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
 </nav>
 
 <section role="tabpanel" id="panel-western">
+  <div id="wheel" style="max-width:420px;margin:0 auto .6rem"></div>
   <table id="planetTable">
     <thead><tr><th>Body</th><th>Position</th><th class="num">Longitude</th><th>House</th></tr></thead>
     <tbody></tbody>
   </table>
   <p class="angles" id="anglesOut"></p>
-  <p class="bazimeta">Houses: whole sign from the Ascendant. Placidus cusps are on the roadmap.</p>
+  <p class="bazimeta">Houses: WS = whole sign, P = Placidus. Wheel spokes are Placidus cusps; red/gold center lines are hard/soft aspects.</p>
 </section>
 
 <section role="tabpanel" id="panel-bazi" hidden>

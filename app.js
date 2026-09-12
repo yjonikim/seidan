@@ -78,6 +78,38 @@
   }
 
   /* ---------- Western ---------- */
+  function placidusCusps(ramc, lat, eps, asc, mc) {
+    const raToEcl = (ra) => ((Math.atan2(Math.sin(ra * D2R), Math.cos(ra * D2R) * Math.cos(eps)) * R2D) + 360) % 360;
+    function iter(offset, diurnal, frac) {
+      let ra = ramc + offset;
+      for (let i = 0; i < 40; i++) {
+        const dec = Math.atan(Math.tan(eps) * Math.sin(ra * D2R));
+        const x = Math.tan(lat * D2R) * Math.tan(dec);
+        if (Math.abs(x) > 1) return null;
+        const ad = Math.asin(x) * R2D;
+        const sa = diurnal ? 90 + ad : 90 - ad;
+        ra = diurnal ? ramc + sa * frac : ramc + 180 - sa * frac;
+      }
+      return raToEcl(ra);
+    }
+    const c11 = iter(30, true, 1 / 3), c12 = iter(60, true, 2 / 3);
+    const c2 = iter(120, false, 2 / 3), c3 = iter(150, false, 1 / 3);
+    if ([c11, c12, c2, c3].some(c => c === null)) return null;
+    const cu = new Array(13);
+    cu[1] = asc; cu[2] = c2; cu[3] = c3; cu[4] = (mc + 180) % 360;
+    cu[5] = (c11 + 180) % 360; cu[6] = (c12 + 180) % 360;
+    cu[7] = (asc + 180) % 360; cu[8] = (c2 + 180) % 360;
+    cu[9] = (c3 + 180) % 360; cu[10] = mc; cu[11] = c11; cu[12] = c12;
+    return cu;
+  }
+  function placidusHouse(cu, L) {
+    for (let h = 1; h <= 12; h++) {
+      const a = cu[h], b = cu[h === 12 ? 1 : h + 1];
+      if (((L - a + 360) % 360) < ((b - a + 360) % 360)) return h;
+    }
+    return 0;
+  }
+
   function bodyLon(name, date) {
     const A = window.Astronomy;
     if (name === "Sun") return A.SunPosition(date).elon;
@@ -97,15 +129,17 @@
     asc = (asc + 360) % 360;
     const ascSign = Math.floor(asc / 30);
     const bodies = ["Sun","Moon","Mercury","Venus","Mars","Jupiter","Saturn","Uranus","Neptune","Pluto"];
+    const cusps = placidusCusps(ramc, p.lat, eps, asc, mc);
     const rows = bodies.map((b) => {
       const L = bodyLon(b, date);
       const L2 = bodyLon(b, new Date(date.getTime() + 3600e3));
       const rx = b !== "Sun" && b !== "Moon" &&
                  (((L2 - L + 540) % 360) - 180) < 0;
       const house = ((Math.floor(L / 30) - ascSign + 12) % 12) + 1;
-      return { body: b, lon: L, rx, house };
+      const ph = cusps ? placidusHouse(cusps, L) : "—";
+      return { body: b, lon: L, rx, house, ph };
     });
-    return { rows, asc, mc };
+    return { rows, asc, mc, cusps };
   }
   function renderWestern(w) {
     const tb = $("planetTable").querySelector("tbody");
@@ -113,11 +147,72 @@
     for (const r of w.rows) {
       const tr = document.createElement("tr");
       tr.innerHTML = `<td>${r.body}${r.rx ? ' <span class="rx">Rx</span>' : ""}</td>` +
-        `<td>${fmtLon(r.lon)}</td><td class="num">${r.lon.toFixed(2)}°</td><td>${r.house}</td>`;
+        `<td>${fmtLon(r.lon)}</td><td class="num">${r.lon.toFixed(2)}°</td><td>WS${r.house} · P${r.ph}</td>`;
       tb.appendChild(tr);
     }
     $("anglesOut").innerHTML =
       `<span>Asc ${fmtLon(w.asc)}</span><span>MC ${fmtLon(w.mc)}</span>`;
+    renderWheel(w);
+  }
+
+  /* ---------- wheel ---------- */
+  const SIGN_GLYPHS = ["\u2648","\u2649","\u264A","\u264B","\u264C","\u264D","\u264E","\u264F","\u2650","\u2651","\u2652","\u2653"];
+  const PLANET_GLYPHS = { Sun:"\u2609", Moon:"\u263D", Mercury:"\u263F", Venus:"\u2640",
+    Mars:"\u2642", Jupiter:"\u2643", Saturn:"\u2644", Uranus:"\u2645",
+    Neptune:"\u2646", Pluto:"\u2647" };
+  const VS = "\uFE0E"; // force text-style glyphs, not emoji
+  function renderWheel(w) {
+    const C = 200, pt = (L, r) => {
+      const t = (180 - (L - w.asc)) * D2R;
+      return [C + r * Math.cos(t), C + r * Math.sin(t)];
+    };
+    let s = `<svg viewBox="-14 -14 428 428" role="img" aria-label="Natal chart wheel">`;
+    s += `<circle cx="200" cy="200" r="190" fill="none" stroke="var(--ink)" stroke-width="1.5"/>`;
+    s += `<circle cx="200" cy="200" r="164" fill="none" stroke="var(--ink)" stroke-width="1"/>`;
+    s += `<circle cx="200" cy="200" r="70" fill="none" stroke="var(--rule)" stroke-width="1"/>`;
+    for (let i = 0; i < 12; i++) {
+      const [x1, y1] = pt(i * 30, 164), [x2, y2] = pt(i * 30, 190);
+      s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--ink-faded)" stroke-width="1"/>`;
+      const [gx, gy] = pt(i * 30 + 15, 177);
+      s += `<text x="${gx}" y="${gy}" font-size="15" text-anchor="middle" dominant-baseline="central" fill="var(--ink)">${SIGN_GLYPHS[i]}${VS}</text>`;
+    }
+    if (w.cusps) {
+      for (let h = 1; h <= 12; h++) {
+        const angle = h === 1 || h === 4 || h === 7 || h === 10;
+        const [x1, y1] = pt(w.cusps[h], 70), [x2, y2] = pt(w.cusps[h], 164);
+        s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${angle ? "var(--ink)" : "var(--rule)"}" stroke-width="${angle ? 2 : 1}"/>`;
+        const mid = w.cusps[h] + (((w.cusps[h === 12 ? 1 : h + 1] - w.cusps[h] + 360) % 360) / 2);
+        const [nx, ny] = pt(mid, 82);
+        s += `<text x="${nx}" y="${ny}" font-size="9" text-anchor="middle" dominant-baseline="central" fill="var(--ink-faded)">${h}</text>`;
+      }
+      const [ax, ay] = pt(w.asc, 197);
+      s += `<text x="${ax}" y="${ay}" font-size="9" text-anchor="middle" dominant-baseline="central" fill="var(--ink)">Asc</text>`;
+    }
+    // aspect lines (to exact positions on inner circle)
+    const ASPECTS = [[60, 4, "var(--thread)"], [90, 7, "var(--seal)"], [120, 7, "var(--thread)"], [180, 7, "var(--seal)"]];
+    for (let i = 0; i < w.rows.length; i++) for (let j = i + 1; j < w.rows.length; j++) {
+      const d = Math.abs(((w.rows[i].lon - w.rows[j].lon + 540) % 360) - 180);
+      for (const [ang, orb, col] of ASPECTS) {
+        if (Math.abs(d - ang) <= orb) {
+          const [x1, y1] = pt(w.rows[i].lon, 70), [x2, y2] = pt(w.rows[j].lon, 70);
+          s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="1" opacity="0.55"/>`;
+        }
+      }
+    }
+    // planets: exact tick + glyph, radial nudge for clusters
+    const sorted = [...w.rows].sort((a, b) => a.lon - b.lon);
+    let lastLon = -99, level = 0;
+    for (const r of sorted) {
+      if (((r.lon - lastLon + 360) % 360) < 9) level = (level + 1) % 3; else level = 0;
+      lastLon = r.lon;
+      const [tx1, ty1] = pt(r.lon, 158), [tx2, ty2] = pt(r.lon, 164);
+      s += `<line x1="${tx1}" y1="${ty1}" x2="${tx2}" y2="${ty2}" stroke="var(--seal)" stroke-width="1.5"/>`;
+      const [gx, gy] = pt(r.lon, 140 - level * 18);
+      s += `<text x="${gx}" y="${gy}" font-size="16" text-anchor="middle" dominant-baseline="central" fill="var(--ink)">${PLANET_GLYPHS[r.body]}${VS}</text>`;
+      if (r.rx) s += `<text x="${gx + 9}" y="${gy + 7}" font-size="7" fill="var(--seal)">R</text>`;
+    }
+    s += `</svg>`;
+    $("wheel").innerHTML = s;
   }
 
   /* ---------- BaZi ---------- */
@@ -126,7 +221,11 @@
     const solar = window.Solar.fromYmdHms(t.y, t.m, t.d, t.hh, t.mm, 0);
     const lunar = solar.getLunar();
     const ec = lunar.getEightChar();
+    const yun = ec.getYun(p.gender === "male" ? 1 : 0);
+    const luck = yun.getDaYun().filter(x => x.getGanZhi()).slice(0, 9)
+      .map(x => `${x.getGanZhi()}@${x.getStartAge()}`).join("\u2002");
     return {
+      luck, luckDir: yun.isForward() ? "forward" : "backward",
       timeUsed: `${t.hh}:${String(t.mm).padStart(2, "0")}` + (p.solartime ? " true solar" : " standard"),
       pillars: [
         { role: "Year 年", gz: ec.getYear(), hide: ec.getYearHideGan() },
@@ -149,7 +248,8 @@
       out.appendChild(div);
     }
     $("baziMeta").textContent =
-      `Lunar date: ${b.lunarStr}. Day master in red. Hour from ${b.timeUsed} time.`;
+      `Lunar date: ${b.lunarStr}. Day master in red. Hour from ${b.timeUsed} time.\n` +
+      `Luck pillars (${b.luckDir}): ${b.luck}`;
   }
 
   /* ---------- ZWDS ---------- */
