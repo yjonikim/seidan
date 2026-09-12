@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F2F1EC;
+  --ink:#1E2438;
+  --ink-faded:#6B7080;
+  --seal:#A63A2E;
+  --thread:#8C7A45;
+  --rule:#C9C7BE;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'Gowun Batang','Noto Serif KR','Noto Serif CJK KR',serif;
+  line-height:1.55;
+  padding:1rem;
+  max-width:44rem;
+  margin:0 auto;
+  font-variant-numeric:tabular-nums;
+}
+header{margin:.5rem 0 1.25rem;border-bottom:2px solid var(--ink);padding-bottom:.6rem}
+header h1{font-size:1.6rem;font-weight:700;letter-spacing:.02em}
+header p{color:var(--ink-faded);font-size:.85rem}
+fieldset{border:1px solid var(--rule);padding:.9rem;margin-bottom:1rem}
+legend{padding:0 .4rem;font-size:.85rem;color:var(--ink-faded)}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem .8rem}
+.formgrid .wide{grid-column:1 / -1}
+label{display:block;font-size:.78rem;color:var(--ink-faded);margin-bottom:.15rem}
+input,select{
+  width:100%;font:inherit;font-size:.95rem;color:var(--ink);
+  background:transparent;border:none;border-bottom:1px solid var(--ink);
+  padding:.15rem 0;border-radius:0;
+}
+input:focus,select:focus,button:focus{outline:2px solid var(--seal);outline-offset:2px}
+.profilebar{display:flex;gap:.6rem;align-items:end;margin-bottom:.8rem;flex-wrap:wrap}
+.profilebar>div{flex:1;min-width:9rem}
+button{
+  font:inherit;font-size:.88rem;background:transparent;color:var(--ink);
+  border:1px solid var(--ink);padding:.35rem .9rem;cursor:pointer;border-radius:0;
+}
+button:hover{background:var(--ink);color:var(--paper)}
+button.seal{border-color:var(--seal);color:var(--seal)}
+button.seal:hover{background:var(--seal);color:var(--paper)}
+.btnrow{display:flex;gap:.5rem;margin-top:.8rem;flex-wrap:wrap}
+nav{display:flex;border-bottom:2px solid var(--ink);margin:1.4rem 0 0}
+nav button{
+  border:1px solid var(--rule);border-bottom:none;flex:1;
+  color:var(--ink-faded);padding:.5rem .2rem;font-size:.95rem;
+}
+nav button:hover{background:transparent;color:var(--ink)}
+nav button[aria-selected="true"]{
+  border-color:var(--ink);color:var(--ink);font-weight:700;
+  border-bottom:2px solid var(--paper);margin-bottom:-2px;
+}
+section[role="tabpanel"]{padding:1.1rem 0}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th{font-weight:400;color:var(--ink-faded);text-align:left;font-size:.78rem;
+   border-bottom:1px solid var(--ink);padding:.25rem .4rem}
+td{padding:.3rem .4rem;border-bottom:1px solid var(--rule)}
+td.num{text-align:right}
+.rx{color:var(--seal);font-size:.8em}
+.angles{margin:.9rem 0 0;font-size:.95rem}
+.angles span{margin-right:1.4rem}
+/* ---- BaZi pillars: vertical, like a saju paper ---- */
+.pillars{display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem;text-align:center;margin:.4rem 0 1rem}
+.pillar{border:1px solid var(--ink);padding:.7rem .3rem}
+.pillar .role{font-size:.72rem;color:var(--ink-faded);margin-bottom:.4rem}
+.pillar .gan,.pillar .zhi{font-size:1.9rem;line-height:1.25;font-weight:700}
+.pillar .hide{font-size:.75rem;color:var(--ink-faded);margin-top:.4rem}
+.daymaster .gan{color:var(--seal)}
+.bazimeta{font-size:.88rem;color:var(--ink-faded)}
+/* ---- ZWDS: traditional 4x4 palace sheet ---- */
+.zwgrid{
+  display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,auto);
+  border:2px solid var(--ink);margin-top:.4rem;
+}
+.palace{border:1px solid var(--ink);min-height:6.2rem;padding:.35rem;font-size:.72rem;position:relative}
+.palace .pname{font-weight:700;font-size:.8rem}
+.palace .pbranch{position:absolute;bottom:.25rem;right:.35rem;color:var(--ink-faded)}
+.palace .major{font-size:.95rem;font-weight:700;margin:.15rem 0}
+.palace .minor{color:var(--ink-faded);line-height:1.4}
+.palace.ming{box-shadow:inset 0 0 0 2px var(--seal)}
+.palace.ming .pname{color:var(--seal)}
+.zwcenter{
+  grid-column:2/4;grid-row:2/4;border:1px solid var(--ink);
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  gap:.3rem;text-align:center;padding:.5rem;
+}
+.zwcenter .who{font-size:1.15rem;font-weight:700}
+.zwcenter .meta{font-size:.8rem;color:var(--ink-faded)}
+.zwcenter .bureau{font-size:1rem;color:var(--seal);font-weight:700}
+.errbox{border:1px solid var(--seal);color:var(--seal);padding:.6rem .8rem;font-size:.88rem;margin:.8rem 0;display:none}
+footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
+       font-size:.75rem;color:var(--ink-faded)}
+@media (max-width:480px){
+  body{padding:.7rem}
+  .pillar .gan,.pillar .zhi{font-size:1.5rem}
+  .palace{min-height:5.2rem;font-size:.62rem}
+  .palace .major{font-size:.8rem}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Calculador</h1>
+  <p>natal engines: Western / BaZi / Zi Wei Dou Shu</p>
+</header>
+
+<div class="profilebar">
+  <div>
+    <label for="profileSel">Saved charts</label>
+    <select id="profileSel"></select>
+  </div>
+  <button id="loadBtn">Load</button>
+  <button id="delBtn">Delete</button>
+</div>
+
+<fieldset>
+  <legend>Birth data</legend>
+  <div class="formgrid">
+    <div class="wide"><label for="pname">Name</label><input id="pname" type="text" autocomplete="off"></div>
+    <div><label for="bdate">Date</label><input id="bdate" type="date"></div>
+    <div><label for="btime">Clock time</label><input id="btime" type="time"></div>
+    <div><label for="clockoff">Clock UTC offset (incl. DST, e.g. +10)</label><input id="clockoff" type="number" step="0.25" value="9"></div>
+    <div><label for="stdoff">Standard offset for BaZi/ZWDS (usually same, minus DST)</label><input id="stdoff" type="number" step="0.25" value="9"></div>
+    <div><label for="lat">Latitude (° north)</label><input id="lat" type="number" step="0.0001"></div>
+    <div><label for="lon">Longitude (° east)</label><input id="lon" type="number" step="0.0001"></div>
+    <div><label for="gender">Gender (ZWDS)</label>
+      <select id="gender"><option value="female">female</option><option value="male">male</option></select>
+    </div>
+    <div class="wide">
+      <label style="display:flex;gap:.5rem;align-items:center;font-size:.85rem;color:var(--ink)">
+        <input type="checkbox" id="solartime" checked style="width:auto">
+        True solar time for BaZi/ZWDS hour (longitude + equation of time)
+      </label>
+    </div>
+  </div>
+  <div class="btnrow">
+    <button id="calcBtn" class="seal">Calculate</button>
+    <button id="saveBtn">Save chart</button>
+  </div>
+</fieldset>
+
+<div class="errbox" id="errbox"></div>
+
+<nav role="tablist" aria-label="Chart systems">
+  <button role="tab" aria-selected="true" data-tab="western">Western</button>
+  <button role="tab" aria-selected="false" data-tab="bazi">BaZi 四柱</button>
+  <button role="tab" aria-selected="false" data-tab="zwds">ZWDS 紫微</button>
+</nav>
+
+<section role="tabpanel" id="panel-western">
+  <table id="planetTable">
+    <thead><tr><th>Body</th><th>Position</th><th class="num">Longitude</th><th>House</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <p class="angles" id="anglesOut"></p>
+  <p class="bazimeta">Houses: whole sign from the Ascendant. Placidus cusps are on the roadmap.</p>
+</section>
+
+<section role="tabpanel" id="panel-bazi" hidden>
+  <div class="pillars" id="pillarsOut"></div>
+  <p class="bazimeta" id="baziMeta"></p>
+</section>
+
+<section role="tabpanel" id="panel-zwds" hidden>
+  <div class="zwgrid" id="zwOut"></div>
+</section>
+
+<footer>Engines: astronomy-engine (planets, angles), lunar-javascript (pillars), iztro (palaces). All calculation runs in your browser; saved charts live in this device's localStorage only.</footer>
+
+<script src="astronomy.browser.min.js"></script>
+<script src="lunar.js"></script>
+<script src="iztro.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
