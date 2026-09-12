@@ -2,7 +2,7 @@
 /* seidan chart.js — CLI twin of the deployed site. Same engines, same math.
    Usage:
      npm install lunar-javascript iztro astronomy-engine
-     node chart.js DATE TIME CLOCK_UTC_OFFSET STD_OFFSET LAT LON GENDER [--std-time]
+     node chart.js DATE TIME CLOCK_UTC_OFFSET STD_OFFSET LAT LON GENDER [--std-time] [--full] [--fly YYYY-MM-DD]
    Example (Joni):
      node chart.js 1988-08-18 20:44 +10 +9 37.566 126.978 female
    Notes: CLOCK offset includes DST if in effect; STD is the zone's normal
@@ -14,10 +14,13 @@ const { astro } = require("iztro");
 
 const [date, time, clockoffS, stdoffS, latS, lonS, gender] = process.argv.slice(2);
 if (!gender) {
-  console.error("Usage: node chart.js DATE TIME CLOCK_OFF STD_OFF LAT LON male|female [--std-time]");
+  console.error("Usage: node chart.js DATE TIME CLOCK_OFF STD_OFF LAT LON male|female [--std-time] [--full] [--fly YYYY-MM-DD]");
   process.exit(1);
 }
 const useSolar = !process.argv.includes("--std-time");
+const full = process.argv.includes("--full");
+const flyIdx = process.argv.indexOf("--fly");
+const flyDate = flyIdx > -1 ? process.argv[flyIdx + 1] : null;
 const clockoff = parseFloat(clockoffS), stdoff = parseFloat(stdoffS);
 const lat = parseFloat(latS), lon = parseFloat(lonS);
 const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo",
@@ -93,8 +96,21 @@ const timeIndex = ct.hh === 23 ? 12 : Math.floor((ct.hh + 1) / 2);
 const chart = astro.bySolar(`${ct.y}-${ct.m}-${ct.d}`, timeIndex, gender, true, "zh-CN");
 console.log(`\n=== ZWDS (${chart.fiveElementsClass}, lunar ${chart.lunarDate}) ===`);
 for (const p of chart.palaces) {
-  const majors = p.majorStars.map(s => s.name + (s.mutagen ? "·" + s.mutagen : "")).join(" ") || "—";
+  const majors = p.majorStars.map(s =>
+    s.name + (s.brightness ? "(" + s.brightness + ")" : "") + (s.mutagen ? "·" + s.mutagen : "")).join(" ") || "—";
   const minors = p.minorStars.map(s => s.name).join(" ");
   const tag = p.name === "命宫" ? " ◀◀" : "";
   console.log(`${p.heavenlyStem}${p.earthlyBranch} ${p.name.padEnd(4)} ${majors}${minors ? "  (" + minors + ")" : ""}${tag}`);
+  if (full) {
+    const adj = p.adjectiveStars.map(s => s.name).join(" ");
+    console.log(`   杂曜: ${adj || "—"}  |  長生:${p.changsheng12} 博士:${p.boshi12}  |  大限 ${p.decadal.range[0]}–${p.decadal.range[1]}`);
+  }
+}
+if (flyDate) {
+  const h = chart.horoscope(flyDate);
+  console.log(`\n=== FLYING 四化 for ${flyDate} (order: 祿 權 科 忌) ===`);
+  for (const [label, sc] of [["Decadal 大限", h.decadal], ["Yearly 流年", h.yearly],
+                             ["Monthly 流月", h.monthly], ["Daily 流日", h.daily]]) {
+    console.log(`${label} ${sc.heavenlyStem}${sc.earthlyBranch}: ${sc.mutagen.join(" ")}  (命宮→natal ${chart.palaces[sc.index].name})`);
+  }
 }
