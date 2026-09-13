@@ -74,6 +74,7 @@ td.num{text-align:right}
 .pillars{display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem;text-align:center;margin:.4rem 0 1rem}
 .pillar{border:1px solid var(--ink);padding:.7rem .3rem}
 .pillar .role{font-size:.72rem;color:var(--ink-faded);margin-bottom:.4rem}
+.pillar .god{font-size:.78rem;color:var(--seal);margin-bottom:.2rem}
 .pillar .gan,.pillar .zhi{font-size:1.9rem;line-height:1.25;font-weight:700}
 .pillar .hide{font-size:.75rem;color:var(--ink-faded);margin-top:.4rem}
 .daymaster .gan{color:var(--seal)}
@@ -108,6 +109,12 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
   .palace .major{font-size:.8rem}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media print{
+  .profilebar,fieldset,nav,.btnrow,footer,.errbox{display:none!important}
+  section[role="tabpanel"]{display:block!important;page-break-inside:avoid}
+  section[role="tabpanel"][hidden]{display:block!important}
+  body{max-width:100%}
+}
 </style>
 </head>
 <body>
@@ -166,6 +173,14 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
     <tbody></tbody>
   </table>
   <p class="angles" id="anglesOut"></p>
+  <div id="dignityOut"></div>
+  <div class="btnrow" style="align-items:end">
+    <div><label for="transitDate">Transit date</label><input type="date" id="transitDate"></div>
+    <button id="transitBtn">Cast transits</button>
+    <button id="transitClear">Clear</button>
+    <button id="savePng">Save wheel PNG</button>
+  </div>
+  <div id="transitOut"></div>
   <p class="bazimeta">Houses: WS = whole sign, P = Placidus. Wheel spokes are Placidus cusps; red/gold center lines are hard/soft aspects.</p>
 </section>
 
@@ -183,6 +198,6 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
 <script src="astronomy.browser.min.js"></script>
 <script src="lunar.js"></script>
 <script src="iztro.min.js"></script>
-<script src="app.js"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

@@ -116,7 +116,9 @@
     if (name === "Moon") return A.EclipticGeoMoon(date).lon;
     return A.Ecliptic(A.GeoVector(A.Body[name], date, true)).elon;
   }
+  let bodyLonCache = {};
   function calcWestern(p) {
+    bodyLonCache = {};
     const A = window.Astronomy;
     const date = utDate(p);
     const gast = A.SiderealTime(date);
@@ -132,6 +134,7 @@
     const cusps = placidusCusps(ramc, p.lat, eps, asc, mc);
     const rows = bodies.map((b) => {
       const L = bodyLon(b, date);
+      bodyLonCache[b] = L;
       const L2 = bodyLon(b, new Date(date.getTime() + 3600e3));
       const rx = b !== "Sun" && b !== "Moon" &&
                  (((L2 - L + 540) % 360) - 180) < 0;
@@ -152,21 +155,134 @@
     }
     $("anglesOut").innerHTML =
       `<span>Asc ${fmtLon(w.asc)}</span><span>MC ${fmtLon(w.mc)}</span>`;
-    renderWheel(w);
+    const dg = dignities(w);
+    const lp = lotsAndProfection(w, $("bdate").value);
+    let html = `<p class="bazimeta">${dg.isDay ? "Diurnal" : "Nocturnal"} chart. ` +
+      `Fortune ${fmtLon(lp.fortune)} · Spirit ${fmtLon(lp.spirit)}.\n` +
+      `Profection age ${lp.age}: ${SIGNS[lp.profSign]} (${lp.lord} lord of the year).</p>` +
+      `<table><thead><tr><th>Planet</th><th>Essential dignity</th><th>Bound</th><th>Face</th><th>Sect</th></tr></thead><tbody>`;
+    for (const d of dg.out) html += `<tr><td>${d.body}</td><td>${d.dig}</td><td>${d.bound}</td><td>${d.face}</td><td>${d.sect}</td></tr>`;
+    $("dignityOut").innerHTML = html + "</tbody></table>";
+    lastW = w;
+    renderWheel(w, lastTransits);
   }
 
+
+  const DOMICILE = ["Mars","Venus","Mercury","Moon","Sun","Mercury","Venus","Mars","Jupiter","Saturn","Saturn","Jupiter"];
+  const EXALT = { Sun:0, Moon:1, Mercury:5, Venus:11, Mars:9, Jupiter:3, Saturn:6 };
+  const TRIP = { // element: [day, night, participating] (Dorothean)
+    fire:["Sun","Jupiter","Saturn"], earth:["Venus","Moon","Mars"],
+    air:["Saturn","Mercury","Jupiter"], water:["Venus","Mars","Moon"] };
+  const ELEM = ["fire","earth","air","water"];
+
+  const BOUNDS = [ // Egyptian: [planet, endDeg] per sign — verified against flatlib
+    [["Jupiter",6],["Venus",12],["Mercury",20],["Mars",25],["Saturn",30]],
+    [["Venus",8],["Mercury",14],["Jupiter",22],["Saturn",27],["Mars",30]],
+    [["Mercury",6],["Jupiter",12],["Venus",17],["Mars",24],["Saturn",30]],
+    [["Mars",7],["Venus",13],["Mercury",19],["Jupiter",26],["Saturn",30]],
+    [["Jupiter",6],["Venus",11],["Saturn",18],["Mercury",24],["Mars",30]],
+    [["Mercury",7],["Venus",17],["Jupiter",21],["Mars",28],["Saturn",30]],
+    [["Saturn",6],["Mercury",14],["Jupiter",21],["Venus",28],["Mars",30]],
+    [["Mars",7],["Venus",11],["Mercury",19],["Jupiter",24],["Saturn",30]],
+    [["Jupiter",12],["Venus",17],["Mercury",21],["Saturn",26],["Mars",30]],
+    [["Mercury",7],["Jupiter",14],["Venus",22],["Saturn",26],["Mars",30]],
+    [["Mercury",7],["Venus",13],["Jupiter",20],["Mars",25],["Saturn",30]],
+    [["Venus",12],["Jupiter",16],["Mercury",19],["Mars",28],["Saturn",30]],
+  ];
+  const CHALDEAN = ["Mars","Sun","Venus","Mercury","Moon","Saturn","Jupiter"];
+  function boundLord(L) {
+    const sign = Math.floor(L / 30), deg = L - sign * 30;
+    for (const [pl, end] of BOUNDS[sign]) if (deg < end) return pl;
+    return BOUNDS[sign][4][0];
+  }
+  function faceLord(L) {
+    const sign = Math.floor(L / 30), dec = Math.floor((L - sign * 30) / 10);
+    return CHALDEAN[(sign * 3 + dec) % 7];
+  }
+  function dignities(w) {
+    const sunOff = ((bodyLonCache.Sun - w.asc) + 360) % 360;
+    const isDay = sunOff >= 180; // above horizon
+    const out = [];
+    for (const r of w.rows) {
+      if (!(r.body in EXALT) && DOMICILE.indexOf(r.body) < 0) continue;
+      const sign = Math.floor(r.lon / 30);
+      const d = [];
+      if (DOMICILE[sign] === r.body) d.push("domicile");
+      if (EXALT[r.body] === sign) d.push("exaltation");
+      if (DOMICILE[(sign + 6) % 12] === r.body) d.push("detriment");
+      if (EXALT[r.body] === (sign + 6) % 12) d.push("fall");
+      const t = TRIP[ELEM[sign % 4]];
+      if ((isDay ? t[0] : t[1]) === r.body) d.push("triplicity");
+      else if (t[2] === r.body) d.push("triplicity (part.)");
+      const bl = boundLord(r.lon), fl = faceLord(r.lon);
+      if (bl === r.body) d.push("own bound");
+      if (fl === r.body) d.push("own face");
+      const diurnalP = ["Sun","Jupiter","Saturn"].includes(r.body);
+      const nocturnalP = ["Moon","Venus","Mars"].includes(r.body);
+      let sect = "";
+      if (diurnalP) sect = isDay ? "of sect" : "out of sect";
+      if (nocturnalP) sect = isDay ? "out of sect" : "of sect";
+      out.push({ body: r.body, dig: d.join(", ") || "peregrine", sect, bound: bl, face: fl });
+    }
+    return { isDay, out };
+  }
+  function lotsAndProfection(w, birthDateStr) {
+    const sun = bodyLonCache.Sun, moon = bodyLonCache.Moon;
+    const sunOff = ((sun - w.asc) + 360) % 360, isDay = sunOff >= 180;
+    const fortune = ((isDay ? w.asc + moon - sun : w.asc + sun - moon) % 360 + 360) % 360;
+    const spirit = ((isDay ? w.asc + sun - moon : w.asc + moon - sun) % 360 + 360) % 360;
+    const bd = new Date(birthDateStr), now = new Date();
+    let age = now.getFullYear() - bd.getFullYear();
+    const anniv = new Date(now.getFullYear(), bd.getMonth(), bd.getDate());
+    if (now < anniv) age--;
+    const profSign = (Math.floor(w.asc / 30) + (age % 12)) % 12;
+    return { fortune, spirit, age, profSign, lord: DOMICILE[profSign] };
+  }
+
+  let lastW = null, lastTransits = null;
+  function calcTransits(dateStr, w) {
+    const td = new Date(dateStr + "T12:00:00Z");
+    const rows = [];
+    for (const b of ["Sun","Moon","Mercury","Venus","Mars","Jupiter","Saturn","Uranus","Neptune","Pluto"]) {
+      rows.push({ body: b, lon: bodyLon(b, td) });
+    }
+    const hits = [];
+    const ASP = [[0, "conj"], [60, "sext"], [90, "square"], [120, "trine"], [180, "opp"]];
+    for (const t of rows) for (const n of w.rows) {
+      const d = Math.abs(((t.lon - n.lon + 540) % 360) - 180);
+      for (const [ang, name] of ASP) {
+        const orb = Math.abs(d - ang);
+        if (orb <= 3) hits.push({ t: t.body, n: n.body, name, orb });
+      }
+    }
+    hits.sort((a, b) => a.orb - b.orb);
+    return { rows, hits, dateStr };
+  }
+  function renderTransits(tr) {
+    let html = `<p class="bazimeta">Transits ${tr.dateStr} (12:00 UT — Moon can be ±6° across the day):</p>`;
+    if (!tr.hits.length) html += `<p class="bazimeta">No aspects within 3° orb.</p>`;
+    else {
+      html += `<table><thead><tr><th>Transit</th><th>Aspect</th><th>Natal</th><th class="num">Orb</th></tr></thead><tbody>`;
+      for (const h of tr.hits) {
+        const om = Math.floor(h.orb), os = Math.round((h.orb % 1) * 60);
+        html += `<tr><td>${h.t} ${fmtLon(tr.rows.find(r=>r.body===h.t).lon)}</td><td>${h.name}</td><td>${h.n}</td><td class="num">${om}°${String(os).padStart(2,"0")}′</td></tr>`;
+      }
+      html += "</tbody></table>";
+    }
+    $("transitOut").innerHTML = html;
+  }
   /* ---------- wheel ---------- */
   const SIGN_GLYPHS = ["\u2648","\u2649","\u264A","\u264B","\u264C","\u264D","\u264E","\u264F","\u2650","\u2651","\u2652","\u2653"];
   const PLANET_GLYPHS = { Sun:"\u2609", Moon:"\u263D", Mercury:"\u263F", Venus:"\u2640",
     Mars:"\u2642", Jupiter:"\u2643", Saturn:"\u2644", Uranus:"\u2645",
     Neptune:"\u2646", Pluto:"\u2647" };
   const VS = "\uFE0E"; // force text-style glyphs, not emoji
-  function renderWheel(w) {
+  function renderWheel(w, transits) {
     const C = 200, pt = (L, r) => {
       const t = (180 - (L - w.asc)) * D2R;
       return [C + r * Math.cos(t), C + r * Math.sin(t)];
     };
-    let s = `<svg viewBox="-14 -14 428 428" role="img" aria-label="Natal chart wheel">`;
+    let s = `<svg viewBox="-26 -26 452 452" role="img" aria-label="Natal chart wheel">`;
     s += `<circle cx="200" cy="200" r="190" fill="none" stroke="var(--ink)" stroke-width="1.5"/>`;
     s += `<circle cx="200" cy="200" r="164" fill="none" stroke="var(--ink)" stroke-width="1"/>`;
     s += `<circle cx="200" cy="200" r="70" fill="none" stroke="var(--rule)" stroke-width="1"/>`;
@@ -211,6 +327,14 @@
       s += `<text x="${gx}" y="${gy}" font-size="16" text-anchor="middle" dominant-baseline="central" fill="var(--ink)">${PLANET_GLYPHS[r.body]}${VS}</text>`;
       if (r.rx) s += `<text x="${gx + 9}" y="${gy + 7}" font-size="7" fill="var(--seal)">R</text>`;
     }
+    if (transits) {
+      for (const t of transits.rows) {
+        const [x1, y1] = pt(t.lon, 190), [x2, y2] = pt(t.lon, 196);
+        s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--thread)" stroke-width="1.5"/>`;
+        const [gx, gy] = pt(t.lon, 208);
+        s += `<text x="${gx}" y="${gy}" font-size="13" text-anchor="middle" dominant-baseline="central" fill="var(--thread)">${PLANET_GLYPHS[t.body]}${VS}</text>`;
+      }
+    }
     s += `</svg>`;
     $("wheel").innerHTML = s;
   }
@@ -228,11 +352,13 @@
       luck, luckDir: yun.isForward() ? "forward" : "backward",
       timeUsed: `${t.hh}:${String(t.mm).padStart(2, "0")}` + (p.solartime ? " true solar" : " standard"),
       pillars: [
-        { role: "Year 年", gz: ec.getYear(), hide: ec.getYearHideGan() },
-        { role: "Month 月", gz: ec.getMonth(), hide: ec.getMonthHideGan() },
-        { role: "Day 日", gz: ec.getDay(), hide: ec.getDayHideGan(), dm: true },
-        { role: "Hour 時", gz: ec.getTime(), hide: ec.getTimeHideGan() },
+        { role: "Year 年", gz: ec.getYear(), hide: ec.getYearHideGan(), god: ec.getYearShiShenGan(), zgods: ec.getYearShiShenZhi() },
+        { role: "Month 月", gz: ec.getMonth(), hide: ec.getMonthHideGan(), god: ec.getMonthShiShenGan(), zgods: ec.getMonthShiShenZhi() },
+        { role: "Day 日", gz: ec.getDay(), hide: ec.getDayHideGan(), dm: true, god: "日主", zgods: ec.getDayShiShenZhi() },
+        { role: "Hour 時", gz: ec.getTime(), hide: ec.getTimeHideGan(), god: ec.getTimeShiShenGan(), zgods: ec.getTimeShiShenZhi() },
       ],
+      today: (function(){ const n = window.Lunar.fromDate(new Date());
+        return `${n.getYearInGanZhi()} ${n.getMonthInGanZhi()} ${n.getDayInGanZhi()}`; })(),
       lunarStr: lunar.toString(),
     };
   }
@@ -243,13 +369,15 @@
       const div = document.createElement("div");
       div.className = "pillar" + (pl.dm ? " daymaster" : "");
       div.innerHTML = `<div class="role">${pl.role}</div>` +
+        `<div class="god">${pl.god}</div>` +
         `<div class="gan">${pl.gz[0]}</div><div class="zhi">${pl.gz[1]}</div>` +
-        `<div class="hide">藏 ${pl.hide.join(" ")}</div>`;
+        `<div class="hide">藏 ${pl.hide.map((g, i) => g + "·" + pl.zgods[i]).join(" ")}</div>`;
       out.appendChild(div);
     }
     $("baziMeta").textContent =
       `Lunar date: ${b.lunarStr}. Day master in red. Hour from ${b.timeUsed} time.\n` +
-      `Luck pillars (${b.luckDir}): ${b.luck}`;
+      `Luck pillars (${b.luckDir}): ${b.luck}\n` +
+      `Today's pillars: ${b.today}`;
   }
 
   /* ---------- ZWDS ---------- */
@@ -334,6 +462,42 @@
       }
     });
   }
+
+  $("transitBtn").addEventListener("click", () => {
+    if (!lastW) { showError("Calculate a natal chart first."); return; }
+    const ds = $("transitDate").value;
+    if (!ds) { showError("Pick a transit date."); return; }
+    lastTransits = calcTransits(ds, lastW);
+    renderTransits(lastTransits);
+    renderWheel(lastW, lastTransits);
+  });
+  $("transitClear").addEventListener("click", () => {
+    lastTransits = null; $("transitOut").innerHTML = "";
+    if (lastW) renderWheel(lastW, null);
+  });
+  $("savePng").addEventListener("click", () => {
+    const svgEl = $("wheel").querySelector("svg");
+    if (!svgEl) return;
+    const cs = getComputedStyle(document.documentElement);
+    let raw = svgEl.outerHTML;
+    for (const v of ["ink","ink-faded","seal","thread","rule","paper"]) {
+      raw = raw.split(`var(--${v})`).join(cs.getPropertyValue("--" + v).trim());
+    }
+    const img = new Image();
+    img.onload = () => {
+      const cv = document.createElement("canvas");
+      cv.width = cv.height = 1200;
+      const ctx = cv.getContext("2d");
+      ctx.fillStyle = cs.getPropertyValue("--paper").trim();
+      ctx.fillRect(0, 0, 1200, 1200);
+      ctx.drawImage(img, 0, 0, 1200, 1200);
+      const a = document.createElement("a");
+      a.download = ($("pname").value || "chart") + "-wheel.png";
+      a.href = cv.toDataURL("image/png");
+      a.click();
+    };
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(raw);
+  });
 
   /* first run: seed Joni's chart so it's zero-entry */
   if (!Object.keys(getProfiles()).length) {
