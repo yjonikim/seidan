@@ -78,6 +78,12 @@ td.num{text-align:right}
 .pillar .gan,.pillar .zhi{font-size:1.9rem;line-height:1.25;font-weight:700}
 .pillar .hide{font-size:.75rem;color:var(--ink-faded);margin-top:.4rem}
 .daymaster .gan{color:var(--seal)}
+.luckrow{display:flex;gap:.35rem;overflow-x:auto;padding:.2rem 0 .5rem;margin-bottom:.4rem}
+.luckrow .pillar{min-width:3.4rem;padding:.4rem .2rem;flex:0 0 auto}
+.luckrow .pillar .gan,.luckrow .pillar .zhi{font-size:1.25rem}
+.luckrow .pillar .role{font-size:.62rem;margin-bottom:.25rem}
+.luckrow .pillar .god{font-size:.68rem}
+.pillar.nowpillar{box-shadow:inset 0 0 0 2px var(--seal)}
 .bazimeta{font-size:.88rem;color:var(--ink-faded);white-space:pre-line}
 /* ---- ZWDS: traditional 4x4 palace sheet ---- */
 .zwgrid{
@@ -186,6 +192,7 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
 
 <section role="tabpanel" id="panel-bazi" hidden>
   <div class="pillars" id="pillarsOut"></div>
+  <div id="luckOut"></div>
   <p class="bazimeta" id="baziMeta"></p>
 </section>
 
@@ -198,6 +205,6 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
 <script src="astronomy.browser.min.js"></script>
 <script src="lunar.js"></script>
 <script src="iztro.min.js"></script>
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

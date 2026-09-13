@@ -198,10 +198,39 @@ console.log(`Lunar date: ${lunar.toString()}`);
 const yun = ec.getYun(gender === "male" ? 1 : 0);
 console.log(`Luck pillars (${yun.isForward() ? "forward" : "backward"}, start ${yun.getStartYear()}y ${yun.getStartMonth()}m ${yun.getStartDay()}d after birth):`);
 const dy = yun.getDaYun().filter(p => p.getGanZhi());
-console.log(dy.slice(0, 9).map(p => `${p.getGanZhi()}@${p.getStartAge()}(${p.getStartYear()})`).join("  "));
+const { LunarUtil } = require("lunar-javascript");
+const dmStem = ec.getDay()[0];
+console.log(dy.slice(0, 9).map(p =>
+  `${p.getGanZhi()}\u00B7${LunarUtil.SHI_SHEN[dmStem + p.getGanZhi()[0]] || "?"}@${p.getStartAge()}(${p.getStartYear()})`).join("  "));
 const { Lunar } = require("lunar-javascript");
 const nowL = Lunar.fromDate(new Date());
 console.log(`Today's pillars: ${nowL.getYearInGanZhi()} ${nowL.getMonthInGanZhi()} ${nowL.getDayInGanZhi()}`);
+{
+  const GROUP = { "申":"a","子":"a","辰":"a","寅":"b","午":"b","戌":"b","巳":"c","酉":"c","丑":"c","亥":"d","卯":"d","未":"d" };
+  const T = { taohua:{a:"酉",b:"卯",c:"午",d:"子"}, yima:{a:"寅",b:"申",c:"亥",d:"巳"},
+              huagai:{a:"辰",b:"戌",c:"丑",d:"未"}, jiang:{a:"子",b:"午",c:"酉",d:"卯"} };
+  const NAMES = { taohua:"桃花", yima:"驛馬", huagai:"華蓋", jiang:"將星" };
+  const TIANYI = { "甲":"丑未","戊":"丑未","庚":"丑未","乙":"子申","己":"子申","丙":"亥酉","丁":"亥酉","壬":"卯巳","癸":"卯巳","辛":"午寅" };
+  const WEN = { "甲":"巳","乙":"午","丙":"申","丁":"酉","戊":"申","己":"酉","庚":"亥","辛":"子","壬":"寅","癸":"卯" };
+  const REN = { "甲":"卯","丙":"午","戊":"午","庚":"酉","壬":"子" };
+  const HL = { "子":"卯","丑":"寅","寅":"丑","卯":"子","辰":"亥","巳":"戌","午":"酉","未":"申","申":"未","酉":"午","戌":"巳","亥":"辰" };
+  const B12 = "子丑寅卯辰巳午未申酉戌亥";
+  const slots = [["年", ec.getYear()[1]], ["月", ec.getMonth()[1]], ["日", ec.getDay()[1]], ["時", ec.getTime()[1]]];
+  const yB = slots[0][1], dB = slots[2][1], dS = ec.getDay()[0], yS = ec.getYear()[0];
+  const found = [];
+  const scan = (star, targets, tag) => { for (const [pos, br] of slots)
+    if (targets && targets.includes(br)) found.push(`${star}@${pos}(${br})${tag}`); };
+  for (const [br, tag] of [[yB, "从年"], [dB, "从日"]])
+    for (const k of Object.keys(T)) scan(NAMES[k], T[k][GROUP[br]], tag);
+  scan("天乙貴人", TIANYI[dS], "(日干)");
+  if (yS !== dS) scan("天乙貴人", TIANYI[yS], "(年干)");
+  scan("文昌", WEN[dS], ""); if (REN[dS]) scan("羊刃", REN[dS], "");
+  scan("紅鸞", HL[yB], ""); scan("天喜", B12[(B12.indexOf(HL[yB]) + 6) % 12], "");
+  const xk = lunar.getDayXunKong();
+  scan("空亡", xk, "");
+  console.log("神煞: " + ([...new Set(found)].join("  ") || "—") +
+    `\n空亡 (day ${xk})` + " — 天乙 convention: 甲戊庚→丑未; group stars from year & day branch");
+}
 
 /* ---- ZWDS ---- */
 const timeIndex = ct.hh === 23 ? 12 : Math.floor((ct.hh + 1) / 2);

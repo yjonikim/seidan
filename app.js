@@ -340,16 +340,62 @@
   }
 
   /* ---------- BaZi ---------- */
+  const GROUP = { "申":"szc","子":"szc","辰":"szc","寅":"ywx","午":"ywx","戌":"ywx",
+                  "巳":"syc","酉":"syc","丑":"syc","亥":"hmw","卯":"hmw","未":"hmw" };
+  const TAOHUA = { szc:"酉", ywx:"卯", syc:"午", hmw:"子" };
+  const YIMA   = { szc:"寅", ywx:"申", syc:"亥", hmw:"巳" };
+  const HUAGAI = { szc:"辰", ywx:"戌", syc:"丑", hmw:"未" };
+  const JIANGX = { szc:"子", ywx:"午", syc:"酉", hmw:"卯" };
+  const TIANYI = { "甲":"丑未","戊":"丑未","庚":"丑未","乙":"子申","己":"子申",
+                   "丙":"亥酉","丁":"亥酉","壬":"卯巳","癸":"卯巳","辛":"午寅" };
+  const WENCHANG = { "甲":"巳","乙":"午","丙":"申","丁":"酉","戊":"申","己":"酉","庚":"亥","辛":"子","壬":"寅","癸":"卯" };
+  const YANGREN = { "甲":"卯","丙":"午","戊":"午","庚":"酉","壬":"子" };
+  const HONGLUAN = { "子":"卯","丑":"寅","寅":"丑","卯":"子","辰":"亥","巳":"戌","午":"酉","未":"申","申":"未","酉":"午","戌":"巳","亥":"辰" };
+  const BR = "子丑寅卯辰巳午未申酉戌亥";
+  function shenSha(pillars, dayStem, yearStem, xunKong) {
+    const slots = [["年", pillars[0].gz[1]], ["月", pillars[1].gz[1]], ["日", pillars[2].gz[1]], ["時", pillars[3].gz[1]]];
+    const yearBr = slots[0][1], dayBr = slots[2][1];
+    const found = [];
+    const scan = (star, targets, srcLabel) => {
+      for (const [pos, br] of slots)
+        if (targets.includes(br)) found.push(`${star}@${pos}(${br})${srcLabel}`);
+    };
+    for (const [src, br, tag] of [["年", yearBr, "从年"], ["日", dayBr, "从日"]]) {
+      const g = GROUP[br];
+      scan("桃花", TAOHUA[g], tag); scan("驛馬", YIMA[g], tag);
+      scan("華蓋", HUAGAI[g], tag); scan("將星", JIANGX[g], tag);
+    }
+    scan("天乙貴人", TIANYI[dayStem] || "", "(日干)");
+    if (yearStem !== dayStem) scan("天乙貴人", TIANYI[yearStem] || "", "(年干)");
+    scan("文昌", WENCHANG[dayStem] || "", "");
+    if (YANGREN[dayStem]) scan("羊刃", YANGREN[dayStem], "");
+    scan("紅鸞", HONGLUAN[yearBr], "");
+    scan("天喜", BR[(BR.indexOf(HONGLUAN[yearBr]) + 6) % 12], "");
+    scan("空亡", xunKong, "");
+    return [...new Set(found)];
+  }
+
   function calcBazi(p) {
     const t = chineseTime(p);
     const solar = window.Solar.fromYmdHms(t.y, t.m, t.d, t.hh, t.mm, 0);
     const lunar = solar.getLunar();
     const ec = lunar.getEightChar();
     const yun = ec.getYun(p.gender === "male" ? 1 : 0);
-    const luck = yun.getDaYun().filter(x => x.getGanZhi()).slice(0, 9)
-      .map(x => `${x.getGanZhi()}@${x.getStartAge()}`).join("\u2002");
+    const dm = ec.getDay()[0];
+    const nowY = new Date().getFullYear();
+    const luckArr = yun.getDaYun().filter(x => x.getGanZhi()).slice(0, 9).map(x => ({
+      gz: x.getGanZhi(), age: x.getStartAge(), year: x.getStartYear(),
+      god: window.LunarUtil.SHI_SHEN[dm + x.getGanZhi()[0]] || "",
+      current: nowY >= x.getStartYear() && nowY < x.getStartYear() + 10,
+    }));
+    const pillarsTmp = [
+      { gz: ec.getYear() }, { gz: ec.getMonth() }, { gz: ec.getDay() }, { gz: ec.getTime() }];
+    const stars = shenSha(pillarsTmp, dm, ec.getYear()[0], lunar.getDayXunKong());
+    const xk = lunar.getDayXunKong();
+    const voidLuck = luckArr.filter(l => xk.includes(l.gz[1])).map(l => `${l.gz}@${l.age}`);
     return {
-      luck, luckDir: yun.isForward() ? "forward" : "backward",
+      luckArr, stars, xk, voidLuck,
+      luckDir: yun.isForward() ? "forward" : "backward",
       timeUsed: `${t.hh}:${String(t.mm).padStart(2, "0")}` + (p.solartime ? " true solar" : " standard"),
       pillars: [
         { role: "Year 年", gz: ec.getYear(), hide: ec.getYearHideGan(), god: ec.getYearShiShenGan(), zgods: ec.getYearShiShenZhi() },
@@ -374,10 +420,26 @@
         `<div class="hide">藏 ${pl.hide.map((g, i) => g + "·" + pl.zgods[i]).join(" ")}</div>`;
       out.appendChild(div);
     }
+    const lk = $("luckOut");
+    lk.innerHTML = `<p class="bazimeta">Luck pillars 大運 (${b.luckDir}):</p>`;
+    const row = document.createElement("div");
+    row.className = "luckrow";
+    for (const l of b.luckArr) {
+      const div = document.createElement("div");
+      div.className = "pillar small" + (l.current ? " nowpillar" : "");
+      div.innerHTML = `<div class="role">${l.age}歲<br>${l.year}</div>` +
+        `<div class="god">${l.god}</div>` +
+        `<div class="gan">${l.gz[0]}</div><div class="zhi">${l.gz[1]}</div>`;
+      row.appendChild(div);
+    }
+    lk.appendChild(row);
+    let ss = `<p class="bazimeta">神煞: ${b.stars.length ? b.stars.join("\u2002") : "—"}\n` +
+      `空亡 (day ${b.xk})` + (b.voidLuck.length ? ` — void luck pillars: ${b.voidLuck.join(", ")}` : "") + `</p>`;
+    lk.insertAdjacentHTML("beforeend", ss);
     $("baziMeta").textContent =
       `Lunar date: ${b.lunarStr}. Day master in red. Hour from ${b.timeUsed} time.\n` +
-      `Luck pillars (${b.luckDir}): ${b.luck}\n` +
-      `Today's pillars: ${b.today}`;
+      `Today's pillars: ${b.today}\n` +
+      `神煞 conventions: 天乙 uses 甲戊庚→丑未; group stars checked from year and day branch.`;
   }
 
   /* ---------- ZWDS ---------- */
