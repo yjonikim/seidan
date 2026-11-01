@@ -2,13 +2,18 @@
 /* seidan chart.js — CLI twin of the deployed site. Same engines, same math.
    Usage:
      npm install lunar-javascript iztro astronomy-engine
-     node chart.js DATE TIME CLOCK_UTC_OFFSET STD_OFFSET LAT LON GENDER [--std-time] [--full] [--fly YYYY-MM-DD] [--transit YYYY-MM-DD]
+     node chart.js DATE TIME CLOCK_UTC_OFFSET STD_OFFSET LAT LON GENDER [--std-time] [--full] [--fly YYYY-MM-DD] [--transit YYYY-MM-DD] [--only LIST]
    Example (Joni):
      node chart.js 1988-08-18 20:44 +10 +9 37.566 126.978 female
    Notes: CLOCK offset includes DST if in effect; STD is the zone's normal
    offset. BaZi/ZWDS hour uses true solar time unless --std-time is passed.
    Jyotish (Lahiri sidereal) prints by default; --full also expands all
-   vimshottari antardashas (not just the current mahadasha's). */
+   vimshottari antardashas (not just the current mahadasha's).
+   --only west,bazi,zwds,jyotish,timing — print only the listed disciplines
+   (comma-separated, any subset; aliases: western=west, vedic=jyotish).
+   Omit --only to print everything, as before. --fly implies zwds;
+   --transit always prints when given. All math still runs identically —
+   --only gates output only, never computation. */
 "use strict";
 const A = require("astronomy-engine");
 const { Solar } = require("lunar-javascript");
@@ -16,7 +21,7 @@ const { astro } = require("iztro");
 
 const [date, time, clockoffS, stdoffS, latS, lonS, gender] = process.argv.slice(2);
 if (!gender) {
-  console.error("Usage: node chart.js DATE TIME CLOCK_OFF STD_OFF LAT LON male|female [--std-time] [--full] [--fly YYYY-MM-DD] [--transit YYYY-MM-DD]");
+  console.error("Usage: node chart.js DATE TIME CLOCK_OFF STD_OFF LAT LON male|female [--std-time] [--full] [--fly YYYY-MM-DD] [--transit YYYY-MM-DD] [--only west,bazi,zwds,jyotish,timing]");
   process.exit(1);
 }
 const useSolar = !process.argv.includes("--std-time");
@@ -25,6 +30,23 @@ const flyIdx = process.argv.indexOf("--fly");
 const flyDate = flyIdx > -1 ? process.argv[flyIdx + 1] : null;
 const trIdx = process.argv.indexOf("--transit");
 const transitDate = trIdx > -1 ? process.argv[trIdx + 1] : null;
+
+/* ---- discipline selection (--only) ---- */
+const ALIAS = { western: "west", vedic: "jyotish" };
+const KNOWN = ["west", "bazi", "zwds", "jyotish", "timing"];
+const onlyIdx = process.argv.indexOf("--only");
+let only = null;
+if (onlyIdx > -1) {
+  const raw = (process.argv[onlyIdx + 1] || "");
+  only = new Set(raw.split(",").map(s => s.trim().toLowerCase()).filter(Boolean).map(s => ALIAS[s] || s));
+  for (const k of only) if (!KNOWN.includes(k)) {
+    console.error(`Unknown --only section "${k}". Known: ${KNOWN.join(", ")} (aliases: western, vedic)`);
+    process.exit(1);
+  }
+  if (!only.size) { console.error("--only needs a comma-separated list, e.g. --only bazi,zwds"); process.exit(1); }
+  if (flyDate) only.add("zwds");
+}
+const want = (k) => !only || only.has(k);
 const clockoff = parseFloat(clockoffS), stdoff = parseFloat(stdoffS);
 const lat = parseFloat(latS), lon = parseFloat(lonS);
 const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo",
@@ -90,7 +112,7 @@ function placidusHouse(cusps, L) {
 }
 const cusps = placidusCusps();
 
-console.log("=== WESTERN (tropical) ===");
+if (want("west")) console.log("=== WESTERN (tropical) ===");
 const rows = [];
 for (const b of ["Sun","Moon","Mercury","Venus","Mars","Jupiter","Saturn","Uranus","Neptune","Pluto"]) {
   const L = bodyLon(b, ut);
@@ -99,15 +121,17 @@ for (const b of ["Sun","Moon","Mercury","Venus","Mars","Jupiter","Saturn","Uranu
   const house = ((Math.floor(L / 30) - ascSign + 12) % 12) + 1;
   const ph = cusps ? placidusHouse(cusps, L) : "?";
   rows.push({ body: b, lon: L, rx, house, ph });
-  console.log(`${b.padEnd(8)} ${fmt(L)}  WS${house} P${ph}${rx ? "  Rx" : ""}`);
+  if (want("west")) console.log(`${b.padEnd(8)} ${fmt(L)}  WS${house} P${ph}${rx ? "  Rx" : ""}`);
 }
-console.log(`Asc      ${fmt(asc)}`);
-console.log(`MC       ${fmt(mc)}`);
-if (cusps) {
-  console.log("Placidus cusps:");
-  for (let h = 1; h <= 12; h++) console.log(`  ${String(h).padStart(2)}: ${fmt(cusps[h])}`);
-} else {
-  console.log("Placidus undefined at this latitude (polar circle) — whole-sign only.");
+if (want("west")) {
+  console.log(`Asc      ${fmt(asc)}`);
+  console.log(`MC       ${fmt(mc)}`);
+  if (cusps) {
+    console.log("Placidus cusps:");
+    for (let h = 1; h <= 12; h++) console.log(`  ${String(h).padStart(2)}: ${fmt(cusps[h])}`);
+  } else {
+    console.log("Placidus undefined at this latitude (polar circle) — whole-sign only.");
+  }
 }
 
 /* ---- dignities / sect / lots / profection ---- */
@@ -136,6 +160,7 @@ const boundLord = (L) => { const s = Math.floor(L/30), dg = L - s*30;
 const faceLord = (L) => CHALDEAN[(Math.floor(L/30)*3 + Math.floor((L%30)/10)) % 7];
 const sunLon = rows[0].lon, moonLon = rows[1].lon;
 const isDay = ((sunLon - asc + 360) % 360) >= 180;
+if (want("west")) {
 console.log(`\n${isDay ? "Diurnal" : "Nocturnal"} chart.`);
 const fortune = ((isDay ? asc + moonLon - sunLon : asc + sunLon - moonLon) % 360 + 360) % 360;
 const spirit = ((isDay ? asc + sunLon - moonLon : asc + moonLon - sunLon) % 360 + 360) % 360;
@@ -164,6 +189,7 @@ for (const r of rows) {
   if (["Moon","Venus","Mars"].includes(r.body)) sect = isDay ? "out of sect" : "of sect";
   console.log(`  ${r.body.padEnd(8)} ${(dl.join(", ") || "peregrine").padEnd(38)} bound:${bl.padEnd(8)} face:${fl.padEnd(8)} ${sect}`);
 }
+}
 
 
 /* ---- time for Chinese systems ---- */
@@ -189,6 +215,7 @@ const ct = useSolar ? trueSolarLocal() : standardLocal();
 const tstr = `${ct.hh}:${String(ct.mm).padStart(2, "0")} ${useSolar ? "true solar" : "standard"}`;
 
 /* ---- BaZi ---- */
+if (want("bazi")) {
 const lunar = Solar.fromYmdHms(ct.y, ct.m, ct.d, ct.hh, ct.mm, 0).getLunar();
 const ec = lunar.getEightChar();
 console.log(`\n=== BAZI (hour from ${tstr} time) ===`);
@@ -233,8 +260,10 @@ console.log(`Today's pillars: ${nowL.getYearInGanZhi()} ${nowL.getMonthInGanZhi(
   console.log("神煞: " + ([...new Set(found)].join("  ") || "—") +
     `\n空亡 (day ${xk})` + " — 天乙 convention: 甲戊庚→丑未; group stars from year & day branch");
 }
+}
 
 /* ---- ZWDS ---- */
+if (want("zwds")) {
 const timeIndex = ct.hh === 23 ? 12 : Math.floor((ct.hh + 1) / 2);
 const chart = astro.bySolar(`${ct.y}-${ct.m}-${ct.d}`, timeIndex, gender, true, "zh-CN");
 console.log(`\n=== ZWDS (${chart.fiveElementsClass}, lunar ${chart.lunarDate}) ===`);
@@ -257,9 +286,10 @@ if (flyDate) {
     console.log(`${label} ${sc.heavenlyStem}${sc.earthlyBranch}: ${sc.mutagen.join(" ")}  (命宮→natal ${chart.palaces[sc.index].name})`);
   }
 }
+}
 
 /* ---- Jyotish (sidereal, Lahiri) ---- */
-{
+if (want("jyotish")) {
   const RASI = ["Mesha","Vrishabha","Mithuna","Karka","Simha","Kanya",
                 "Tula","Vrischika","Dhanu","Makara","Kumbha","Meena"];
   const NAKS = ["Ashwini","Bharani","Krittika","Rohini","Mrigashira","Ardra","Punarvasu","Pushya","Ashlesha",
@@ -526,7 +556,7 @@ if (transitDate) {
 }
 
 /* ---- timing: firdaria / progressions / solar arc (today) ---- */
-{
+if (want("timing")) {
   const FD = [["Sun",10],["Venus",8],["Mercury",13],["Moon",9],["Saturn",11],["Jupiter",12],["Mars",7],["NNode",3],["SNode",2]];
   const FN = [["Moon",9],["Saturn",11],["Jupiter",12],["Mars",7],["NNode",3],["SNode",2],["Sun",10],["Venus",8],["Mercury",13]];
   const nowD = new Date();
