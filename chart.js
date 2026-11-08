@@ -2,7 +2,7 @@
 /* seidan chart.js — CLI twin of the deployed site. Same engines, same math.
    Usage:
      npm install lunar-javascript iztro astronomy-engine
-     node chart.js DATE TIME CLOCK_UTC_OFFSET STD_OFFSET LAT LON GENDER [--std-time] [--full] [--fly YYYY-MM-DD] [--transit YYYY-MM-DD] [--only LIST]
+     node chart.js DATE TIME CLOCK_UTC_OFFSET STD_OFFSET LAT LON GENDER [--std-time] [--full] [--fly YYYY-MM-DD] [--transit YYYY-MM-DD] [--only LIST] [--asof YYYY-MM-DD]
    Example (Joni):
      node chart.js 1988-08-18 20:44 +10 +9 37.566 126.978 female
    Notes: CLOCK offset includes DST if in effect; STD is the zone's normal
@@ -13,7 +13,11 @@
    (comma-separated, any subset; aliases: western=west, vedic=jyotish).
    Omit --only to print everything, as before. --fly implies zwds;
    --transit always prints when given. All math still runs identically —
-   --only gates output only, never computation. */
+   --only gates output only, never computation.
+   --asof YYYY-MM-DD — compute the "today" layers (profection age, BaZi
+   today's pillars, Sadhe Sati, vimshottari current-markers, firdaria/
+   progressions/solar arc) at that date instead of now. Natal math is
+   unaffected; omit --asof for identical output to previous builds. */
 "use strict";
 const A = require("astronomy-engine");
 const { Solar } = require("lunar-javascript");
@@ -21,7 +25,7 @@ const { astro } = require("iztro");
 
 const [date, time, clockoffS, stdoffS, latS, lonS, gender] = process.argv.slice(2);
 if (!gender) {
-  console.error("Usage: node chart.js DATE TIME CLOCK_OFF STD_OFF LAT LON male|female [--std-time] [--full] [--fly YYYY-MM-DD] [--transit YYYY-MM-DD] [--only west,bazi,zwds,jyotish,timing]");
+  console.error("Usage: node chart.js DATE TIME CLOCK_OFF STD_OFF LAT LON male|female [--std-time] [--full] [--fly YYYY-MM-DD] [--transit YYYY-MM-DD] [--only west,bazi,zwds,jyotish,timing] [--asof YYYY-MM-DD]");
   process.exit(1);
 }
 const useSolar = !process.argv.includes("--std-time");
@@ -30,6 +34,17 @@ const flyIdx = process.argv.indexOf("--fly");
 const flyDate = flyIdx > -1 ? process.argv[flyIdx + 1] : null;
 const trIdx = process.argv.indexOf("--transit");
 const transitDate = trIdx > -1 ? process.argv[trIdx + 1] : null;
+
+/* ---- as-of date (--asof) ---- */
+const asofIdx = process.argv.indexOf("--asof");
+const asofDate = asofIdx > -1 ? process.argv[asofIdx + 1] : null;
+if (asofIdx > -1 && !/^\d{4}-\d{2}-\d{2}$/.test(asofDate || "")) {
+  console.error("--asof needs a date, e.g. --asof 2020-12-21");
+  process.exit(1);
+}
+const asofD = asofDate ? new Date(asofDate + "T12:00:00Z") : new Date();
+const asofMs = asofD.getTime();
+const asofTag = asofDate ? `as of ${asofDate}` : "today";
 
 /* ---- discipline selection (--only) ---- */
 const ALIAS = { western: "west", vedic: "jyotish" };
@@ -165,7 +180,7 @@ console.log(`\n${isDay ? "Diurnal" : "Nocturnal"} chart.`);
 const fortune = ((isDay ? asc + moonLon - sunLon : asc + sunLon - moonLon) % 360 + 360) % 360;
 const spirit = ((isDay ? asc + sunLon - moonLon : asc + moonLon - sunLon) % 360 + 360) % 360;
 console.log(`Fortune ${fmt(fortune)}   Spirit ${fmt(spirit)}`);
-const nowD = new Date();
+const nowD = asofD;
 let age = nowD.getFullYear() - y;
 if (nowD < new Date(nowD.getFullYear(), m - 1, d)) age--;
 const profSign = (Math.floor(asc/30) + (age % 12)) % 12;
@@ -232,8 +247,8 @@ const dmStem = ec.getDay()[0];
 console.log(dy.slice(0, 9).map(p =>
   `${p.getGanZhi()}\u00B7${LunarUtil.SHI_SHEN[dmStem + p.getGanZhi()[0]] || "?"}@${p.getStartAge()}(${p.getStartYear()})`).join("  "));
 const { Lunar } = require("lunar-javascript");
-const nowL = Lunar.fromDate(new Date());
-console.log(`Today's pillars: ${nowL.getYearInGanZhi()} ${nowL.getMonthInGanZhi()} ${nowL.getDayInGanZhi()}`);
+const nowL = Lunar.fromDate(asofD);
+console.log(`${asofDate ? `Pillars for ${asofDate}` : "Today's pillars"}: ${nowL.getYearInGanZhi()} ${nowL.getMonthInGanZhi()} ${nowL.getDayInGanZhi()}`);
 {
   const GROUP = { "申":"a","子":"a","辰":"a","寅":"b","午":"b","戌":"b","巳":"c","酉":"c","丑":"c","亥":"d","卯":"d","未":"d" };
   const T = { taohua:{a:"酉",b:"卯",c:"午",d:"子"}, yima:{a:"寅",b:"申",c:"亥",d:"巳"},
@@ -335,7 +350,7 @@ if (want("jyotish")) {
     const kk = Math.floor(el / 6);
     const kar = kk === 0 ? "Kimstughna" : kk >= 57 ? ["Shakuni","Chatushpada","Naga"][kk - 57] : KARM[(kk - 1) % 7];
     console.log(`Panchanga: ${VARA[new Date(date + "T12:00:00Z").getUTCDay()]} \u00B7 ${ti < 15 ? "Shukla" : "Krishna"} ${tname} \u00B7 ${NITYA[Math.floor(((sunL + moonL) % 360) / (360 / 27))]} yoga \u00B7 ${kar} karana  [vara from civil date; Vedic day is sunrise\u2192sunrise]`);
-    const nowD2 = new Date();
+    const nowD2 = asofD;
     const jt2 = (nowD2.getTime() / 864e5 + 2440587.5 - 2451545) / 36525;
     const ayanNow = 23.85306 + (5028.796195 * jt2 + 1.1054348 * jt2 * jt2) / 3600;
     const satNow = ((bodyLon("Saturn", nowD2) - ayanNow) % 360 + 360) % 360;
@@ -343,12 +358,12 @@ if (want("jyotish")) {
     const sh = ((Math.floor(satNow / 30) - moonSg + 12) % 12) + 1;
     const ph = sh === 12 ? "ACTIVE \u2014 first (rising) phase" : sh === 1 ? "ACTIVE \u2014 second (peak) phase"
       : sh === 2 ? "ACTIVE \u2014 third (setting) phase" : sh === 4 || sh === 8 ? `dhaiyya/panoti (Saturn ${sh}th from Moon)` : "not active";
-    console.log(`Sadhe Sati today: transit Saturn ${RASI[Math.floor(satNow / 30)]}, ${sh}th from natal Moon \u2192 ${ph}`);
+    console.log(`Sadhe Sati ${asofTag}: transit Saturn ${RASI[Math.floor(satNow / 30)]}, ${sh}th from natal Moon \u2192 ${ph}`);
   }
   /* vimshottari */
   const moonS = gs.find(x => x.body === "Moon");
   const mn = nakOf(moonS.lon);
-  const YRms = 365.25 * 864e5, nowMs = Date.now();
+  const YRms = 365.25 * 864e5, nowMs = asofMs;
   const li = mn.i % 9;
   let t0 = ut.getTime() - mn.frac * DASHA[li][1] * YRms;
   const fY = (ms) => { const d = new Date(ms);
@@ -559,7 +574,7 @@ if (transitDate) {
 if (want("timing")) {
   const FD = [["Sun",10],["Venus",8],["Mercury",13],["Moon",9],["Saturn",11],["Jupiter",12],["Mars",7],["NNode",3],["SNode",2]];
   const FN = [["Moon",9],["Saturn",11],["Jupiter",12],["Mars",7],["NNode",3],["SNode",2],["Sun",10],["Venus",8],["Mercury",13]];
-  const nowD = new Date();
+  const nowD = asofD;
   const ageY = (nowD - ut) / (365.2422 * 864e5);
   const seq = isDay ? FD : FN, seven = seq.filter(x => !x[0].includes("Node"));
   const a2 = ageY % 75;
@@ -573,7 +588,7 @@ if (want("timing")) {
   }
   const fA = (yy) => { const dd = new Date(ut.getTime() + yy * 365.2422 * 864e5);
     return `${dd.getUTCFullYear()}.${String(dd.getUTCMonth() + 1).padStart(2, "0")}`; };
-  console.log(`\n=== TIMING (today, age ${ageY.toFixed(2)}) ===`);
+  console.log(`\n=== TIMING (${asofTag}, age ${ageY.toFixed(2)}) ===`);
   console.log(`Firdaria: ${major[0]}${sub ? " / " + sub : ""} — major ${fA(mStart)}\u2013${fA(mStart + major[1])}` +
     (sub ? `, sub until ${fA(subEnd)}` : "") + `  [nodes follow Mars; subs \u00D7yrs/70]`);
   const pd = new Date(ut.getTime() + ageY * 864e5);
