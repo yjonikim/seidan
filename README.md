@@ -51,3 +51,15 @@ positions, Ascendant/MC, hour-branch indexing, and true-solar-time correction.
 - Second fixture chart in the test suite
 - Per-planet orb tables
 - Minor/adjective stars toggle for ZWDS
+
+## tree.js — partnership screen
+
+`node tree.js DATE TIME|- CLOCK_OFF STD_OFF LAT LON male|female --name NAME [--line]`
+
+Screens one person against Joni's chart (override with `--self`) across BaZi,
+ZWDS and Western: do they rate her, and are they structurally good for her
+money? `[+]` fits the spec, `[-]` repeats the pattern of the control case.
+Use `-` for an unknown birth time. `--line` prints a one-line summary for
+looping over a roster; `--selftest` replays the control. Hypothesis v1, built
+from a single case: a sorting aid, not a validated score. Rules are in the
+file header.
