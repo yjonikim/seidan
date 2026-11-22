@@ -2,7 +2,7 @@
 /* seidan chart.js — CLI twin of the deployed site. Same engines, same math.
    Usage:
      npm install lunar-javascript iztro astronomy-engine
-     node chart.js DATE TIME CLOCK_UTC_OFFSET STD_OFFSET LAT LON GENDER [--std-time] [--full] [--fly YYYY-MM-DD] [--transit YYYY-MM-DD] [--only LIST] [--asof YYYY-MM-DD]
+     node chart.js DATE TIME CLOCK_UTC_OFFSET STD_OFFSET LAT LON GENDER [--std-time] [--full] [--fly YYYY-MM-DD] [--transit YYYY-MM-DD] [--only LIST] [--asof YYYY-MM-DD] [--return YEAR]
    Example (Joni):
      node chart.js 1988-08-18 20:44 +10 +9 37.566 126.978 female
    Notes: CLOCK offset includes DST if in effect; STD is the zone's normal
@@ -19,8 +19,13 @@
    progressions/solar arc) at that date instead of now. Natal math is
    unaffected; omit --asof for identical output to previous builds.
    Western also lists natal aspects (traditional per-planet orbs, applying/
-   separating); Jyotish also prints a varga table (D1 D2 D3 D4 D7 D9 D10 D12). */
+   separating); Jyotish also prints a varga table (D1 D2 D3 D4 D7 D9 D10 D12 D30).
+   --return YEAR — solar return for that year, cast for the birthplace; always
+   prints when given. extras.js (shared with the site) supplies zodiacal
+   releasing and the profection table (timing section), the BaZi extras, the
+   chara karakas and the solar return; its header documents the conventions. */
 "use strict";
+const X = require("./extras.js");
 const A = require("astronomy-engine");
 const { Solar } = require("lunar-javascript");
 const { astro } = require("iztro");
@@ -34,6 +39,9 @@ const useSolar = !process.argv.includes("--std-time");
 const full = process.argv.includes("--full");
 const flyIdx = process.argv.indexOf("--fly");
 const flyDate = flyIdx > -1 ? process.argv[flyIdx + 1] : null;
+const srIdx = process.argv.indexOf("--return");
+const returnYear = srIdx > -1 ? parseInt(process.argv[srIdx + 1], 10) : null;
+if (srIdx > -1 && !(returnYear > 1000)) { console.error("--return needs a year, e.g. --return 2027"); process.exit(1); }
 const trIdx = process.argv.indexOf("--transit");
 const transitDate = trIdx > -1 ? process.argv[trIdx + 1] : null;
 
@@ -365,6 +373,8 @@ console.log(`${asofDate ? `Pillars for ${asofDate}` : "Today's pillars"}: ${nowL
   console.log("神煞: " + ([...new Set(found)].join("  ") || "—") +
     `\n空亡 (day ${xk})` + " — 天乙 convention: 甲戊庚→丑未; group stars from year & day branch");
 }
+{ const S = require("./synastry.js");
+  for (const line of X.baziExtras({ Solar, Lunar, LunarUtil }, { ct, gender, asof: asofD, rel: { stemRel: S.stemRel, branchRel: S.branchRel } })) console.log(line); }
 }
 
 /* ---- ZWDS ---- */
@@ -430,7 +440,7 @@ if (want("jyotish")) {
   }
   {
     /* ---- vargas (Parashara): sign index per division for a sidereal longitude ---- */
-    const VARGA_ORDER = ["D1", "D2", "D3", "D4", "D7", "D9", "D10", "D12"];
+    const VARGA_ORDER = ["D1", "D2", "D3", "D4", "D7", "D9", "D10", "D12", "D30"];
     const RASI3 = ["Mes", "Vrs", "Mit", "Kar", "Sim", "Kan", "Tul", "Vrc", "Dha", "Mak", "Kum", "Mee"];
     function vargaSigns(L) {
       const s = Math.floor(L / 30), d = L - s * 30, odd = s % 2 === 0;        /* Aries (index 0) is an odd sign */
@@ -444,12 +454,14 @@ if (want("jyotish")) {
         D9: Math.floor(L / (10 / 3)) % 12,                                    /* navamsa */
         D10: (s + (odd ? 0 : 8) + part(10)) % 12,                             /* dasamsa: odd from itself, even from the 9th */
         D12: (s + part(12)) % 12,                                             /* dwadasamsa: from itself */
+        D30: (odd ? [0, 10, 8, 2, 6] : [1, 5, 11, 9, 7])[[5, 10, 18, 25, 30].findIndex((e, i) => d < (odd ? e : [5, 12, 20, 25, 30][i]))],  /* trimsamsa: unequal parts ruled by Ma Sa Ju Me Ve (odd) / Ve Me Ju Sa Ma (even) */
       };
     }
     console.log(`Vargas (Parashara):  ${VARGA_ORDER.map(v => v.padEnd(4)).join(" ")}`);
     for (const g of gs) { const v = vargaSigns(g.lon);
       console.log(`  ${g.body.padEnd(18)} ${VARGA_ORDER.map(k => RASI3[v[k]].padEnd(4)).join(" ")}${v.D1 === v.D9 ? " vargottama" : ""}`); }
   }
+  for (const line of X.charaKarakas(gs)) console.log(line);
   /* panchanga + sadhe sati */
   {
     const TITHI = ["Pratipada","Dvitiya","Tritiya","Chaturthi","Panchami","Shashthi","Saptami","Ashtami","Navami","Dashami","Ekadashi","Dvadashi","Trayodashi","Chaturdashi"];
@@ -720,4 +732,14 @@ if (want("timing")) {
   th.sort((x, y) => x.o - y.o);
   console.log("Directed hits (1\u00B0 orb):");
   for (const x of th) console.log(`  ${x.tag} ${x.t} ${x.nm} n${x.n}  ${x.o.toFixed(2)}\u00B0`);
+  const lotF = ((isDay ? asc + moonLon - sunLon : asc + sunLon - moonLon) % 360 + 360) % 360;
+  const lotS = ((isDay ? asc + sunLon - moonLon : asc + moonLon - sunLon) % 360 + 360) % 360;
+  for (const line of X.zodiacalReleasing({ fortune: lotF, spirit: lotS, ut, asof: asofD })) console.log(line);
+  for (const line of X.profections({ asc, birth: date, asof: asofD })) console.log(line);
+}
+
+/* ---- solar return (--return YEAR) ---- */
+if (returnYear) {
+  console.log("");
+  for (const line of X.solarReturn(A, { rows, asc, ut, year: returnYear, lat, lon })) console.log(line);
 }

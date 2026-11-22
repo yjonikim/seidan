@@ -132,3 +132,24 @@ console.log("solar-time tests passed.");
   ok("Extras: Sun at 29° Leo in 2000 is found with Regulus", /Sun with Regulus/.test(r));
   console.log(`traditional-extras tests passed (${pass} assertions in all).`);
 }
+
+// --- extras.js (appended v17) ---
+{
+  const X = require("./extras.js"), DAY = 864e5, t0 = Date.UTC(2000, 0, 1);
+  ok("ZR: minor years sum to 211 (17y 7m in months for a full L2 circuit)", X.ZR_YEARS.reduce((a, b) => a + b, 0) === 211);
+  const l1 = X.zrLevel1(3, t0, t0 + 30 * 360 * DAY);
+  ok("ZR: L1 from Cancer runs 25 years of 360 days, then Leo", l1[0].sign === 3 && l1[0].end - l1[0].start === 25 * 360 * DAY && l1[1].sign === 4);
+  const l2 = X.zrLevel2(l1[0]);
+  ok("ZR: L2 starts in the L1 sign; 13th sub-period looses the bond to the opposite sign (Capricorn)", l2[0].sign === 3 && l2[12].lb && l2[12].sign === 9 && l2[11].sign === 2);
+  ok("ZR: L2 sub-periods fill the L1 period exactly", l2[l2.length - 1].end === l1[0].end && l2.every((p, i) => i === 0 || p.start === l2[i - 1].end));
+  const pf = X.profections({ asc: 335.93, birth: "1988-08-18", asof: new Date("2026-11-22T12:00:00Z"), years: 1 });
+  ok("Profection: age 38 from Pisces rising = 3rd house Taurus, Venus", /age 38 .*3rd house, Taurus .* Venus/.test(pf[1]));
+  const { execFileSync } = require("child_process");
+  const o = execFileSync("node", [require("path").join(__dirname, "chart.js"), "1988-08-18", "20:44", "+10", "+9", "37.5665", "126.978", "female", "--return", "2027", "--asof", "2026-11-22"], { encoding: "utf8" });
+  ok("Solar return 2027: Sun back at 25°42′ Leo", /Solar return 2027/.test(o) && /Sun\s+25°4[12]′ Leo/.test(o.split("Solar return 2027")[1]));
+  ok("BaZi extras: na yin 大林木 / 石榴木 / 覆灯火 / 屋上土", /大林木 · month 石榴木 · day 覆灯火 · hour 屋上土/.test(o));
+  ok("BaZi extras: 乙 day master is 冠带 in 辰 and 墓 in 戌", /year 冠带 Capping .* hour 墓 Tomb/.test(o));
+  ok("Vargas: D30 Lagna 12° Aquarius → Dha; Jupiter 10° Taurus → Kan", /Lagna\s+Kum.*\sDha\s/.test(o) && /Jupiter\s+Vrs.*\sKan\s/.test(o));
+  ok("Chara karakas: Atmakaraka Mars, Darakaraka Sun", /Atmakaraka \(self\) Mars .*Darakaraka \(partner\) Sun/.test(o));
+  console.log(`extras tests passed (${pass} assertions in all).`);
+}

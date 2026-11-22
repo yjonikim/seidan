@@ -23,9 +23,12 @@ Engines, vendored as flat files (no CDN calls at runtime):
 | Hermetic lots, planetary day and hour, prenatal syzygy, Behenian stars | yes | yes |
 | Transits to natal | yes | `--transit DATE` |
 | Firdaria, secondary progressions, solar arc | yes | yes |
+| Zodiacal releasing (L1 + L2, loosing of the bond), profection table | yes | yes |
+| Solar return | for the as-of year | `--return YEAR` |
 | BaZi: pillars, ten gods, hidden stems, luck pillars, 神煞 | yes | yes |
+| BaZi: na yin, life stages, 胎元 / 命宮 / 身宮, relations inside the chart and with the current luck pillar and year | yes | yes |
 | ZWDS board | yes | yes (`--full`, `--fly DATE`) |
-| Jyotish: rasi + navamsa charts, nakshatras, vargas, yogas, vimshottari, panchanga, Sadhe Sati | yes | yes (no drawn charts) |
+| Jyotish: rasi + navamsa charts, nakshatras, vargas, chara karakas, yogas, vimshottari, panchanga, Sadhe Sati | yes | yes (no drawn charts) |
 | As-of date for every "today" layer | date field by the Calculate button | `--asof DATE` |
 | EN glosses for hanzi | toggle | hanzi only |
 | Synastry | Synastry tab | `synastry.js` |
@@ -38,11 +41,12 @@ Engines, vendored as flat files (no CDN calls at runtime):
 npm install lunar-javascript iztro astronomy-engine
 node chart.js DATE TIME CLOCK_UTC_OFFSET STD_OFFSET LAT LON male|female
               [--only west,bazi,zwds,jyotish,timing] [--asof DATE] [--transit DATE]
-              [--fly DATE] [--full] [--std-time]
+              [--return YEAR] [--fly DATE] [--full] [--std-time]
 ```
 
 `--only` gates what prints, never what is computed. Full flag notes are in
-the `chart.js` header.
+the `chart.js` header. `extras.js` and `synastry.js` are loaded by both the
+CLI and the site, so those layers print the same text in both places.
 
 ## Time zone fields (the one tricky part)
 
@@ -67,14 +71,16 @@ the `chart.js` header.
 - Behenian stars: J2000 ecliptic longitudes precessed at 50.29″ a year,
   conjunction by longitude only, 1° orb.
 - Jyotish: Lahiri ayanamsa, mean-node Rahu, whole-sign houses, 365.25-day
-  dasha year. Vargas follow Parashara (D2, D3, D4, D7, D9, D10, D12).
+  dasha year. Vargas follow Parashara (D2, D3, D4, D7, D9, D10, D12, D30).
+- Zodiacal releasing: Valens' minor years, 360-day years, loosing of the bond
+  after a full Level 2 circuit. Details in the `extras.js` header.
 - ZWDS: iztro's default school. BaZi 天乙貴人: 甲戊庚 → 丑未.
 
 ## Tests
 
 ```
 npm install lunar-javascript iztro astronomy-engine
-node run-tests.js            # 43 assertions: two fixture charts + CLI output checks
+node run-tests.js            # 53 assertions: two fixture charts, CLI output, extras
 node synastry.js --selftest  # 21 checks
 node tree.js --selftest      # 10 checks
 node blind.js --selftest     # 7 checks
@@ -84,7 +90,7 @@ node blind.js --selftest     # 7 checks
 
 - Shadbala and ashtakavarga (held until they can be checked against a
   reference implementation)
-- D30 and D60 (D60 needs birth time to the minute)
+- The rest of the sixteen vargas (D16, D20, D24, D27, D40, D45, D60)
 - Adjective-star toggle for the ZWDS board on the site
 - `dlr.py` (the Da Liu Ren engine) is not in this repo yet
 

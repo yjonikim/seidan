@@ -473,6 +473,14 @@
       h += `</tbody></table>`;
     } else h += `<p class="bazimeta">No progressed/SA hits within 1\u00B0.</p>`;
     $("timingOut").innerHTML = h;
+    try {
+      const E = window.SeidanExtras, dg = dignities(w), lp = lotsAndProfection(w, p.date), as = asOf();
+      $("timingExtra").textContent = [
+        ...E.zodiacalReleasing({ fortune: lp.fortune, spirit: lp.spirit, ut: bd, asof: as }), "",
+        ...E.profections({ asc: w.asc, birth: p.date, asof: as }), "",
+        ...E.solarReturn(window.Astronomy, { rows: w.rows, asc: w.asc, ut: bd, year: as.getUTCFullYear(), lat: p.lat, lon: p.lon }),
+      ].join("\n");
+    } catch (err) { $("timingExtra").textContent = ""; }
   }
   /* ---------- wheel ---------- */
   const SIGN_GLYPHS = ["\u2648","\u2649","\u264A","\u264B","\u264C","\u264D","\u264E","\u264F","\u2650","\u2651","\u2652","\u2653"];
@@ -596,8 +604,11 @@
     const stars = shenSha(pillarsTmp, dm, ec.getYear()[0], lunar.getDayXunKong());
     const xk = lunar.getDayXunKong();
     const voidLuck = luckArr.filter(l => xk.includes(l.gz[1])).map(l => `${l.gz}@${l.age}`);
+    let extras = [];
+    try { extras = window.SeidanExtras.baziExtras({ Solar: window.Solar, Lunar: window.Lunar, LunarUtil: window.LunarUtil },
+      { ct: t, gender: p.gender, asof: asOf(), rel: window.SeidanSynastry }); } catch (err) { /* optional layer */ }
     return {
-      luckArr, stars, xk, voidLuck,
+      extras, luckArr, stars, xk, voidLuck,
       luckDir: yun.isForward() ? "forward" : "backward",
       timeUsed: `${t.hh}:${String(t.mm).padStart(2, "0")}` + (p.solartime ? " true solar" : " standard"),
       pillars: [
@@ -639,6 +650,7 @@
     let ss = `<p class="bazimeta">神煞: ${b.stars.length ? b.stars.join("\u2002") : "—"}\n` +
       `${g("空亡")} (day ${b.xk})` + (b.voidLuck.length ? ` — void luck pillars: ${b.voidLuck.join(", ")}` : "") + `</p>`;
     lk.insertAdjacentHTML("beforeend", ss);
+    $("baziExtra").textContent = (b.extras || []).join("\n");
     $("baziMeta").innerHTML =
       `Lunar date: ${b.lunarStr}. Day master in red. Hour from ${b.timeUsed} time.\n` +
       `Pillars ${asOfLabel()}: ${b.today}\n` +
@@ -1008,7 +1020,7 @@
   const fmtYM = (ms) => { const d = new Date(ms);
     return `${d.getUTCFullYear()}.${String(d.getUTCMonth() + 1).padStart(2, "0")}`; };
   /* ---- vargas (Parashara): sign index per division for a sidereal longitude ---- */
-  const VARGA_ORDER = ["D1", "D2", "D3", "D4", "D7", "D9", "D10", "D12"];
+  const VARGA_ORDER = ["D1", "D2", "D3", "D4", "D7", "D9", "D10", "D12", "D30"];
   const RASI3 = ["Mes", "Vrs", "Mit", "Kar", "Sim", "Kan", "Tul", "Vrc", "Dha", "Mak", "Kum", "Mee"];
   function vargaSigns(L) {
     const s = Math.floor(L / 30), d = L - s * 30, odd = s % 2 === 0;        /* Aries (index 0) is an odd sign */
@@ -1022,6 +1034,7 @@
       D9: Math.floor(L / (10 / 3)) % 12,                                    /* navamsa */
       D10: (s + (odd ? 0 : 8) + part(10)) % 12,                             /* dasamsa: odd from itself, even from the 9th */
       D12: (s + part(12)) % 12,                                             /* dwadasamsa: from itself */
+      D30: (odd ? [0, 10, 8, 2, 6] : [1, 5, 11, 9, 7])[[5, 10, 18, 25, 30].findIndex((e, i) => d < (odd ? e : [5, 12, 20, 25, 30][i]))],  /* trimsamsa: unequal parts ruled by Ma Sa Ju Me Ve (odd) / Ve Me Ju Sa Ma (even) */
     };
   }
   function renderJyotish(j) {
@@ -1051,6 +1064,7 @@
     for (const g2 of j.grahas) { const v = vargaSigns(g2.lon);
       vh += `<tr><td>${g2.body}${v.D1 === v.D9 ? ' <span class="rx">vargottama</span>' : ""}</td>` + VARGA_ORDER.map(k => `<td>${RASI3[v[k]]}</td>`).join("") + `</tr>`; }
     $("vargaOut").innerHTML = vh + `</tbody></table>`;
+    try { $("karakaOut").textContent = window.SeidanExtras.charaKarakas(j.grahas).join("\n"); } catch (err) { $("karakaOut").textContent = ""; }
     let yh = `<p class="bazimeta">Yogas \u2014 mechanical detection (presence, not strength); Moon ${j.waxing ? "waxing" : "waning"}, benefics: ${j.benefics.join(", ")}${j.mercAfflicted ? " (Mercury counted malefic: shares sign with a malefic)" : ""}:</p>`;
     if (!j.yogas.length) yh += `<p class="bazimeta">\u2014 none of the tracked set forms.</p>`;
     else {

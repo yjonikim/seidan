@@ -68,7 +68,7 @@ section[role="tabpanel"]{padding:1.1rem 0}
 #blindPacket,#blindReveal{width:100%;box-sizing:border-box;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.74rem;line-height:1.35;margin-top:.5rem;background:transparent;color:var(--ink);border:1px solid var(--rule);padding:.5rem}
 .synrow{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
 @media (max-width:480px){.synrow{grid-template-columns:1fr}}
-#synOut{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.74rem;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:.8rem}
+#synOut,pre.extras{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.74rem;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:.8rem}
 #blindMsg{margin-top:.6rem}
 .blindrow{display:flex;align-items:center;gap:.6rem;margin:.25rem 0;font-size:.92rem}
 .blindrow select{width:auto;min-width:11rem}
@@ -219,12 +219,14 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
   </div>
   <div id="transitOut"></div>
   <div id="timingOut"></div>
+  <pre class="extras" id="timingExtra"></pre>
   <p class="bazimeta">Houses: P = Placidus (default), WS = whole sign. Wheel spokes are Placidus cusps; red/gold center lines are hard/soft aspects.</p>
 </section>
 
 <section role="tabpanel" id="panel-bazi" hidden>
   <div class="pillars" id="pillarsOut"></div>
   <div id="luckOut"></div>
+  <pre class="extras" id="baziExtra"></pre>
   <p class="bazimeta" id="baziMeta"></p>
 </section>
 
@@ -246,6 +248,7 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
     <tbody></tbody>
   </table>
   <div id="vargaOut"></div>
+  <p class="bazimeta" id="karakaOut"></p>
   <div id="yogaOut"></div>
   <div id="dashaOut"></div>
   <div id="drishtiOut"></div>
@@ -289,7 +292,8 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
 <script src="astronomy.browser.min.js"></script>
 <script src="lunar.js"></script>
 <script src="iztro.min.js"></script>
-<script src="synastry.js?v=1"></script>
-<script src="app.js?v=16"></script>
+<script src="synastry.js?v=2"></script>
+<script src="extras.js?v=1"></script>
+<script src="app.js?v=17"></script>
 </body>
 </html>

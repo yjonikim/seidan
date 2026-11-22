@@ -483,7 +483,7 @@ function report(a, b, want) {
   return L;
 }
 function run(a, b, want) { console.log(report(a, b, want).join("\n")); }
-const API = { build, report, west, westAspects, bazi, zwds, jyotish, ashtakoota, moonFacts, DEFAULT_SELF };
+const API = { stemRel, branchRel, build, report, west, westAspects, bazi, zwds, jyotish, ashtakoota, moonFacts, DEFAULT_SELF };
 if (IS_NODE) module.exports = API; else window.SeidanSynastry = API;
 
 if (IS_NODE && require.main === module) {
