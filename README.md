@@ -99,7 +99,18 @@ node blind.js --selftest     # 7 checks
   reference implementation)
 - The rest of the sixteen vargas (D16, D20, D24, D27, D40, D45, D60)
 - Adjective-star toggle for the ZWDS board on the site
-- `dlr.py` (the Da Liu Ren engine) is not in this repo yet
+
+## dlr.py — Da Liu Ren board caster
+
+`python3 dlr.py YYYY-MM-DD HH:MM CLOCK_UTC_OFFSET LAT LON [--birth YYYY --gender f|m] [--question "..."]`
+
+Pure Python, no installs. Casts the full board from a moment: day pillar and
+voids, hour branch from true solar time, yue jiang from the Sun's longitude,
+both plates, four lessons, the course-type cascade (all nine patterns), three
+transmissions with hidden stems and the twelve generals, and optional
+benming / xingnian overlays. School choices are documented in the file
+header. `python3 dlr.py --selftest` replays the Oct 18, 2026 inaugural board
+(15 checks). Its day pillars agree with lunar-javascript.
 
 ## tree.js — partnership screen
 
