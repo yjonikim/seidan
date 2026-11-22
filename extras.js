@@ -118,6 +118,14 @@ function baziExtras(lib, o) {       /* lib: { Solar, Lunar, LunarUtil }; o: { ct
       const hits = P.map(([n, p]) => [n, pairRel(gz, p)]).filter(([, r]) => r.length).map(([n, r]) => `natal ${n}: ${r.join("; ")}`);
       L.push(`${label} — stem is ${god} to the day master — ${hits.length ? hits.join(" | ") : "no combination, clash, harm or punishment with the natal pillars"}`);
     }
+    /* the years ahead: each year pillar (from Li Chun) against the natal pillars */
+    L.push("Years ahead (year pillar from Li Chun, against the natal pillars):");
+    for (let k = 1; k <= 5; k++) {
+      const yy = asY + k, gz = lib.Solar.fromYmd(yy, 6, 15).getLunar().getYearInGanZhiByLiChun(), god = lib.LunarUtil.SHI_SHEN[dm + gz[0]] || "";
+      const lk = yun.getDaYun().filter(p => p.getGanZhi()).find(p => yy >= p.getStartYear() && yy < p.getStartYear() + 10);
+      const hits = P.map(([n, p]) => [n, pairRel(gz, p)]).filter(([, r]) => r.length).map(([n, r]) => `${n}: ${r.join("; ")}`);
+      L.push(`  ${yy} ${gz} ${god}${lk ? ` (luck ${lk.getGanZhi()})` : ""}: ${hits.length ? hits.join(" | ") : "quiet against the natal pillars"}`);
+    }
   }
   return L;
 }
