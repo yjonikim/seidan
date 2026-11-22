@@ -115,3 +115,20 @@ console.log("solar-time tests passed.");
     return /Firdaria: Mars \/ Mars/.test(o) && /Pillars for 2020-12-21: 庚子 戊子 戊戌/.test(o); })());
   console.log(`fixture-2 and CLI tests passed (${pass} assertions in all).`);
 }
+
+// --- Traditional extras (appended v16): checked against the calendar and almanac by hand ---
+{
+  const { execFileSync } = require("child_process");
+  const cli = (args) => execFileSync("node", [require("path").join(__dirname, "chart.js"), ...args, "--only", "west"], { encoding: "utf8" });
+  const j = cli(["1988-08-18", "20:44", "+10", "+9", "37.5665", "126.978", "female"]);
+  ok("Extras: 1988-08-18 is a Thursday → Jupiter day; first night hour → Moon", /Planetary day: Jupiter · planetary hour: Moon \(night hour 1 of 12/.test(j));
+  ok("Extras: prenatal syzygy is the 12 Aug 1988 New Moon at 20° Leo", /Prenatal syzygy: New Moon.*20°\d\d′ Leo/.test(j));
+  ok("Extras: nocturnal Eros = Asc + Spirit − Venus ≈ 6° Capricorn", /Eros 6°\d\d′ Capricorn/.test(j));
+  ok("Extras: Mercury under the beams and occidental, Venus oriental", /Mercury under the beams, occidental/.test(j) && /Venus free of the beams, oriental/.test(j));
+  const c = cli(["1963-04-12", "19:31", "-5", "-5", "40.7282", "-73.7949", "male"]);
+  ok("Extras: 1963-04-12 is a Friday → Venus day; second night hour → Sun", /Planetary day: Venus · planetary hour: Sun \(night hour 2 of 12/.test(c));
+  ok("Extras: prenatal syzygy is the 9 Apr 1963 Full Moon in Libra", /Prenatal syzygy: Full Moon.*Libra/.test(c));
+  const r = cli(["2000-08-22", "12:00", "+0", "+0", "51.5", "0", "female"]);
+  ok("Extras: Sun at 29° Leo in 2000 is found with Regulus", /Sun with Regulus/.test(r));
+  console.log(`traditional-extras tests passed (${pass} assertions in all).`);
+}

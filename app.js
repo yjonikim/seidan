@@ -204,7 +204,14 @@
       `<table><thead><tr><th>Planet</th><th>Aspect</th><th>Planet</th><th class="num">Orb</th><th>Motion</th></tr></thead><tbody>`;
     for (const x of natalAspects(w.rows, w.asc, w.mc))
       html += `<tr><td>${x.a}</td><td>${x.name}${x.outOfSign ? " (out of sign)" : ""}</td><td>${x.b}</td><td class="num">${dmo(x.orb)}</td><td>${x.motion}</td></tr>`;
-    $("dignityOut").innerHTML = html + "</tbody></table>";
+    html += "</tbody></table>";
+    try {
+      const pf = readForm();
+      const ex = tradExtras(window.Astronomy, { rows: w.rows, asc: w.asc, mc: w.mc, isDay: dg.isDay, fortune: lp.fortune, spirit: lp.spirit,
+        ut: utDate(pf), lat: pf.lat, lon: pf.lon, clockoff: pf.clockoff, fmt: fmtLon });
+      html += `<p class="bazimeta">${ex.map(x => x.replace(/&/g, "&amp;").replace(/</g, "&lt;")).join("\n")}</p>`;
+    } catch (err) { /* extras are optional */ }
+    $("dignityOut").innerHTML = html;
     lastW = w;
     renderWheel(w, lastTransits);
   }
@@ -294,6 +301,60 @@
       }
     }
     return res.sort((x, y) => x.orb - y.orb);
+  }
+  /* ---- traditional extras: solar phase, Hermetic lots, planetary day/hour, prenatal syzygy, Behenian stars ----
+     Solar phase: cazimi within 17′ of the Sun, combust within 8°30′, under the beams within 15°;
+     oriental = rises before the Sun. Lots follow Paulus (reversed by night). Planetary hours are
+     unequal hours from true sunrise/sunset at the birthplace. Stars: J2000 ecliptic longitudes
+     precessed at 50.29″/yr, conjunction by longitude only, 1° orb. Returns text lines. */
+  const BEHENIAN = [["Algol", 56.17], ["Alcyone (Pleiades)", 60.00], ["Aldebaran", 69.78], ["Capella", 81.85], ["Sirius", 104.08],
+    ["Procyon", 115.78], ["Regulus", 149.83], ["Alkaid", 176.93], ["Algorab", 193.45], ["Spica", 203.83], ["Arcturus", 204.23],
+    ["Alphecca", 222.30], ["Antares", 249.77], ["Vega", 285.32], ["Deneb Algedi", 323.55]];
+  function tradExtras(A, o) {
+    const L = [], n360 = (x) => ((x % 360) + 360) % 360, sepOf = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
+    const lon = {}; for (const r of o.rows) lon[r.body] = r.lon;
+    const dmo = (x) => `${Math.floor(x)}\u00B0${String(Math.floor((x % 1) * 60 + 1e-9)).padStart(2, "0")}\u2032`;
+    /* solar phase */
+    const ph = [];
+    for (const b of ["Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn"]) {
+      const e = sepOf(lon[b], lon.Sun);
+      const tag = e <= 17 / 60 ? "CAZIMI" : e <= 8.5 ? "combust" : e <= 15 ? "under the beams" : "free of the beams";
+      const side = b === "Moon" ? (n360(lon.Moon - lon.Sun) < 180 ? "waxing" : "waning") : (n360(lon.Sun - lon[b]) < 180 ? "oriental" : "occidental");
+      ph.push(`${b} ${tag}, ${side} (${dmo(e)} from Sun)`);
+    }
+    L.push("Solar phase: " + ph.join("; "));
+    /* Hermetic lots (Paulus) */
+    const lot = (plus, minus) => n360(o.isDay ? o.asc + plus - minus : o.asc + minus - plus);
+    const lots = [["Eros", lot(lon.Venus, o.spirit)], ["Necessity", lot(o.fortune, lon.Mercury)], ["Courage", lot(o.fortune, lon.Mars)],
+                  ["Victory", lot(lon.Jupiter, o.spirit)], ["Nemesis", lot(o.fortune, lon.Saturn)]];
+    L.push("Hermetic lots (Paulus): " + lots.map(([n, x]) => `${n} ${o.fmt(x)}`).join(" \u00B7 "));
+    /* planetary day and hour */
+    try {
+      const obs = new A.Observer(o.lat, o.lon, 0), DAY = 864e5, t = o.ut.getTime();
+      const rise = A.SearchRiseSet(A.Body.Sun, obs, +1, new Date(t - DAY), 2).date;
+      const set = A.SearchRiseSet(A.Body.Sun, obs, -1, rise, 2).date;
+      let idx, len;
+      if (t < set.getTime()) { len = (set - rise) / 12; idx = Math.floor((t - rise) / len); }
+      else { const next = A.SearchRiseSet(A.Body.Sun, obs, +1, set, 2).date; len = (next - set) / 12; idx = 12 + Math.floor((t - set) / len); }
+      const wd = new Date(rise.getTime() + o.clockoff * 3600e3).getUTCDay();
+      const DAYR = ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn"], CH = ["Saturn", "Jupiter", "Mars", "Sun", "Venus", "Mercury", "Moon"];
+      const hourR = CH[(CH.indexOf(DAYR[wd]) + idx) % 7];
+      L.push(`Planetary day: ${DAYR[wd]} \u00B7 planetary hour: ${hourR} (${idx < 12 ? "day" : "night"} hour ${(idx % 12) + 1} of 12, each ${Math.round(len / 60000)} min; day counted from sunrise)`);
+    } catch (e) { L.push("Planetary hour: unavailable at this latitude/date (no sunrise or sunset)"); }
+    /* prenatal syzygy */
+    try {
+      const phase = A.MoonPhase(o.ut), isNew = phase < 180, back = (isNew ? phase : phase - 180) / 12.19 + 1.5;
+      const syz = A.SearchMoonPhase(isNew ? 0 : 180, new Date(o.ut.getTime() - back * 864e5), 4).date;
+      const ml = A.EclipticGeoMoon(syz).lon;
+      L.push(`Prenatal syzygy: ${isNew ? "New Moon (conjunction)" : "Full Moon (opposition)"} with the Moon at ${o.fmt(ml)}, ${((o.ut - syz) / 864e5).toFixed(1)} days before birth`);
+    } catch (e) { /* search failed: omit the line */ }
+    /* Behenian stars */
+    const yrs = (o.ut.getTime() - Date.UTC(2000, 0, 1, 12)) / (365.25 * 864e5), hits = [];
+    const pts = o.rows.map(r => [r.body, r.lon]).concat([["Asc", o.asc], ["MC", o.mc]]);
+    for (const [star, l0] of BEHENIAN) { const sl = n360(l0 + yrs * 50.29 / 3600);
+      for (const [b, bl] of pts) { const d = sepOf(sl, bl); if (d <= 1) hits.push(`${b} with ${star} (${o.fmt(sl)}, orb ${dmo(d)})`); } }
+    L.push("Behenian stars within 1\u00B0: " + (hits.length ? hits.join("; ") : "none"));
+    return L;
   }
   function lotsAndProfection(w, birthDateStr) {
     const sun = bodyLonCache.Sun, moon = bodyLonCache.Moon;

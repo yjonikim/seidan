@@ -19,6 +19,8 @@ Engines, vendored as flat files (no CDN calls at runtime):
 | Western: planets, Asc/MC, whole-sign + Placidus, wheel | yes | yes (no wheel) |
 | Dignities, sect, lots, profection | yes | yes |
 | Natal aspects, traditional orbs, applying/separating | yes | yes |
+| Solar phase (cazimi / combust / under the beams, oriental / occidental) | yes | yes |
+| Hermetic lots, planetary day and hour, prenatal syzygy, Behenian stars | yes | yes |
 | Transits to natal | yes | `--transit DATE` |
 | Firdaria, secondary progressions, solar arc | yes | yes |
 | BaZi: pillars, ten gods, hidden stems, luck pillars, 神煞 | yes | yes |
@@ -59,6 +61,11 @@ the `chart.js` header.
   7°, Mars 8°, Jupiter and Saturn 9°, outers 5°). Two planets are in aspect
   when they are within the mean of their two orbs. Angles take half the
   planet's orb. Ptolemaic aspects only.
+- Solar phase: cazimi within 17′, combust within 8°30′, under the beams
+  within 15°. Hermetic lots follow Paulus and reverse by night. Planetary
+  hours are unequal hours from true sunrise and sunset at the birthplace.
+- Behenian stars: J2000 ecliptic longitudes precessed at 50.29″ a year,
+  conjunction by longitude only, 1° orb.
 - Jyotish: Lahiri ayanamsa, mean-node Rahu, whole-sign houses, 365.25-day
   dasha year. Vargas follow Parashara (D2, D3, D4, D7, D9, D10, D12).
 - ZWDS: iztro's default school. BaZi 天乙貴人: 甲戊庚 → 丑未.
@@ -67,7 +74,7 @@ the `chart.js` header.
 
 ```
 npm install lunar-javascript iztro astronomy-engine
-node run-tests.js            # 36 assertions: two fixture charts + CLI output checks
+node run-tests.js            # 43 assertions: two fixture charts + CLI output checks
 node synastry.js --selftest  # 21 checks
 node tree.js --selftest      # 10 checks
 node blind.js --selftest     # 7 checks
