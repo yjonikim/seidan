@@ -594,7 +594,9 @@
     const dateStr = `${t.y}-${t.m}-${t.d}`;
     return window.iztro.astro.bySolar(dateStr, timeIndex(t.hh), p.gender, true, "zh-CN");
   }
+  let zwDetail = localStorage.getItem("calculador.zwdetail") === "on";
   function renderZwds(chart, p) {
+    $("zwDetailBtn").textContent = `Detail: ${zwDetail ? "on (minor stars, 12 phases, decade ages)" : "off"}`;
     const out = $("zwOut");
     out.innerHTML = "";
     for (const pal of chart.palaces) {
@@ -609,9 +611,20 @@
       cell.innerHTML = `<div class="pname">${g(pal.name)}</div>` +
         `<div class="major">${majors || "—"}</div>` +
         `<div class="minor">${minors}</div>` +
+        (zwDetail ? `<div class="adj">${pal.adjectiveStars.map(s => s.name).join(" ") || "\u2014"}<br>\u9577\u751F ${pal.changsheng12} \u00B7 \u535A\u58EB ${pal.boshi12}</div>` +
+                    `<div class="decade">${pal.decadal.range[0]}\u2013${pal.decadal.range[1]}</div>` : "") +
         `<div class="pbranch">${pal.heavenlyStem}${pal.earthlyBranch}</div>`;
       out.appendChild(cell);
     }
+    /* flying transformations for the as-of date (same layers as the CLI's --fly) */
+    try {
+      const d = asOf(), ds = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`, h = chart.horoscope(ds);
+      let fh = `<p class="bazimeta">Flying \u56DB\u5316 ${asOfLabel()} (order: ${g("\u7984")} \u00B7 ${g("\u6743")} \u00B7 ${g("\u79D1")} \u00B7 ${g("\u5FCC")}); the Life palace of each layer falls on the natal palace shown.</p>` +
+        `<table><thead><tr><th>Layer</th><th>Stem-branch</th><th>Four transformations</th><th>Life palace on natal</th></tr></thead><tbody>`;
+      for (const [label, sc] of [["Decade \u5927\u9650", h.decadal], ["Year \u6D41\u5E74", h.yearly], ["Month \u6D41\u6708", h.monthly], ["Day \u6D41\u65E5", h.daily]])
+        fh += `<tr><td>${label}</td><td>${sc.heavenlyStem}${sc.earthlyBranch}</td><td>${sc.mutagen.map(x => g(x)).join(" \u00B7 ")}</td><td>${g(chart.palaces[sc.index].name)}</td></tr>`;
+      $("zwFlyOut").innerHTML = fh + "</tbody></table>";
+    } catch (err) { $("zwFlyOut").innerHTML = ""; }
     const center = document.createElement("div");
     center.className = "zwcenter";
     center.innerHTML = `<div class="who">${p.name || "—"}</div>` +
@@ -1058,6 +1071,35 @@
   applyGloss();
   $("calcBtn").addEventListener("click", calculate);
   $("asofDate").addEventListener("change", calculate);
+  $("zwDetailBtn").addEventListener("click", () => {
+    zwDetail = !zwDetail; localStorage.setItem("calculador.zwdetail", zwDetail ? "on" : "off"); calculate();
+  });
+  /* ---------- export / import saved charts ---------- */
+  $("exportBtn").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(getProfiles(), null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "seidan-charts.json"; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  });
+  $("importBtn").addEventListener("click", () => $("importFile").click());
+  $("importFile").addEventListener("change", async (ev) => {
+    const f = ev.target.files[0]; ev.target.value = ""; if (!f) return;
+    try {
+      let data = JSON.parse(await f.text());
+      if (Array.isArray(data)) data = Object.fromEntries(data.map(p => [p.name, p]));
+      const all = getProfiles(), incoming = {};
+      for (const [name, p] of Object.entries(data)) {
+        if (!p || !name || !/^\d{4}-\d{2}-\d{2}$/.test(p.date || "") || Number.isNaN(parseFloat(p.lat)) || Number.isNaN(parseFloat(p.lon))) continue;
+        incoming[name] = { name, date: p.date, time: p.time || "12:00", clockoff: parseFloat(p.clockoff), stdoff: parseFloat(p.stdoff),
+                           lat: parseFloat(p.lat), lon: parseFloat(p.lon), gender: p.gender === "male" ? "male" : "female", solartime: p.solartime !== false };
+      }
+      const names = Object.keys(incoming), clash = names.filter(n => all[n]);
+      if (!names.length) { showError("No valid charts found in that file."); return; }
+      if (clash.length && !confirm(`Overwrite ${clash.length} saved chart(s) with the same name? (${clash.join(", ")})`)) for (const n of clash) delete incoming[n];
+      setProfiles(Object.assign(all, incoming)); refreshProfileList(); renderBlindPick(); renderSynPick();
+      showError(""); $("errbox").textContent = `Imported ${Object.keys(incoming).length} chart(s).`; $("errbox").style.display = "block";
+    } catch (err) { showError("Import failed: " + err.message); }
+  });
   $("asofClear").addEventListener("click", () => { $("asofDate").value = ""; calculate(); });
   $("saveBtn").addEventListener("click", () => {
     const p = readForm();

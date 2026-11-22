@@ -110,6 +110,8 @@ body.gloss .palace .gl{font-size:.58rem;display:inline;margin-left:.15em}
 .palace .pbranch{position:absolute;bottom:.25rem;right:.35rem;color:var(--ink-faded)}
 .palace .major{font-size:.95rem;font-weight:700;margin:.15rem 0}
 .palace .minor{color:var(--ink-faded);line-height:1.4}
+.palace .adj{color:var(--ink-faded);font-size:.6rem;line-height:1.35;margin-top:.2rem;padding-bottom:.9rem}
+.palace .decade{position:absolute;bottom:.25rem;left:.35rem;color:var(--ink-faded);font-size:.6rem}
 .palace.ming{box-shadow:inset 0 0 0 2px var(--seal)}
 .palace.ming .pname{color:var(--seal)}
 .zwcenter{
@@ -157,6 +159,9 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
   <button id="loadBtn">Load</button>
   <button id="delBtn">Delete</button>
   <button id="glossBtn">EN glosses: on</button>
+  <button id="exportBtn" title="Download every saved chart as one JSON file (a backup, and the roster format blind.js reads)">Export charts</button>
+  <button id="importBtn" title="Add charts from an exported JSON file">Import charts</button>
+  <input type="file" id="importFile" accept=".json,application/json" hidden>
 </div>
 
 <fieldset>
@@ -224,7 +229,9 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
 </section>
 
 <section role="tabpanel" id="panel-zwds" hidden>
+  <div class="btnrow" style="margin-top:0;margin-bottom:.6rem"><button id="zwDetailBtn">Detail: off</button></div>
   <div class="zwgrid" id="zwOut"></div>
+  <div id="zwFlyOut"></div>
 </section>
 
 <section role="tabpanel" id="panel-jyotish" hidden>
@@ -283,6 +290,6 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
 <script src="lunar.js"></script>
 <script src="iztro.min.js"></script>
 <script src="synastry.js?v=1"></script>
-<script src="app.js?v=14"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>
