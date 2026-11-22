@@ -1,56 +1,85 @@
-# Calculador
+# seidan 星団
 
-One-page natal chart instrument: Western (planets, Asc/MC, whole-sign houses),
-BaZi four pillars, and Zi Wei Dou Shu — all computed in the browser, no server.
+One-page natal chart instrument, four systems side by side: Western (tropical,
+traditional toolkit), BaZi four pillars, Zi Wei Dou Shu, and Jyotish (Lahiri).
+Everything is computed in the browser. There is no server and nothing is
+transmitted; saved charts live in that device's localStorage only.
 
-Engines (vendored as flat files, no CDN calls at runtime):
+Live: https://yjonikim.github.io/seidan/ (GitHub Pages, served from `main`).
+
+Engines, vendored as flat files (no CDN calls at runtime):
 - **astronomy-engine** — planetary positions, sidereal time
-- **lunar-javascript** — lunar calendar, four pillars, hidden stems
+- **lunar-javascript** — lunar calendar, four pillars, hidden stems, luck pillars
 - **iztro** — ZWDS palace derivation
 
-Saved charts live in the browser's localStorage on that device only.
-Nothing is transmitted anywhere.
+## What is in it
 
-## Deploy (GitHub Pages, no terminal needed)
+| | Site | CLI (`chart.js`) |
+|---|---|---|
+| Western: planets, Asc/MC, whole-sign + Placidus, wheel | yes | yes (no wheel) |
+| Dignities, sect, lots, profection | yes | yes |
+| Natal aspects, traditional orbs, applying/separating | yes | yes |
+| Transits to natal | yes | `--transit DATE` |
+| Firdaria, secondary progressions, solar arc | yes | yes |
+| BaZi: pillars, ten gods, hidden stems, luck pillars, 神煞 | yes | yes |
+| ZWDS board | yes | yes (`--full`, `--fly DATE`) |
+| Jyotish: rasi + navamsa charts, nakshatras, vargas, yogas, vimshottari, panchanga, Sadhe Sati | yes | yes (no drawn charts) |
+| As-of date for every "today" layer | date field by the Calculate button | `--asof DATE` |
+| EN glosses for hanzi | toggle | hanzi only |
+| Synastry | Synastry tab | `synastry.js` |
+| Blind chart-matching test | Blind test tab | `blind.js` |
+| Partnership screen | — | `tree.js` |
 
-1. On github.com: **+** (top right) → **New repository** → name it
-   `calculador`, Public, create.
-2. On the new repo page, click the **“uploading an existing file”** link.
-3. Drag in every file from this folder (or Choose your files → select all).
-4. Press the green **Commit changes** button.
-5. **Settings → Pages → Source: Deploy from a branch → main → Save.**
-6. Wait ~1 minute: `https://YOURNAME.github.io/calculador/`
+## CLI
+
+```
+npm install lunar-javascript iztro astronomy-engine
+node chart.js DATE TIME CLOCK_UTC_OFFSET STD_OFFSET LAT LON male|female
+              [--only west,bazi,zwds,jyotish,timing] [--asof DATE] [--transit DATE]
+              [--fly DATE] [--full] [--std-time]
+```
+
+`--only` gates what prints, never what is computed. Full flag notes are in
+the `chart.js` header.
 
 ## Time zone fields (the one tricky part)
 
 - **Clock UTC offset**: the offset on the wall clock at birth, *including* DST
   if it was in effect (Korea observed DST in 1987–88, so +10).
 - **Standard offset**: the zone's normal offset without DST (+9 for Korea).
-  BaZi and ZWDS use standard time by convention; Western uses the clock time.
   If no DST was in effect, the two fields are the same number.
-- **True solar time** (on by default): corrects the BaZi/ZWDS hour for
-  longitude within the time zone plus the equation of time. Seoul runs
-  ~32 min ahead of the sun on a KST clock; near hour boundaries this can
-  change the hour pillar. Uncheck to use plain standard time.
+- **True solar time** (on by default; `--std-time` turns it off): corrects the
+  BaZi/ZWDS hour for longitude within the time zone plus the equation of time.
+  Seoul runs ~32 min ahead of the sun on a KST clock; near hour boundaries
+  this can change the hour pillar.
+
+## Conventions worth knowing
+
+- Aspects: each planet has its own orb (Sun 15°, Moon 12°, Mercury and Venus
+  7°, Mars 8°, Jupiter and Saturn 9°, outers 5°). Two planets are in aspect
+  when they are within the mean of their two orbs. Angles take half the
+  planet's orb. Ptolemaic aspects only.
+- Jyotish: Lahiri ayanamsa, mean-node Rahu, whole-sign houses, 365.25-day
+  dasha year. Vargas follow Parashara (D2, D3, D4, D7, D9, D10, D12).
+- ZWDS: iztro's default school. BaZi 天乙貴人: 甲戊庚 → 丑未.
 
 ## Tests
 
-Known-answer tests against a verified natal chart (all three systems):
-
 ```
-npm install lunar-javascript iztro astronomy-engine && node run-tests.js
+npm install lunar-javascript iztro astronomy-engine
+node run-tests.js            # 36 assertions: two fixture charts + CLI output checks
+node synastry.js --selftest  # 21 checks
+node tree.js --selftest      # 10 checks
+node blind.js --selftest     # 7 checks
 ```
 
-26 assertions covering pillars, palace placement, bureau, ten planetary
-positions, Ascendant/MC, hour-branch indexing, and true-solar-time correction.
+## Not built yet
 
-## Roadmap
-
-- Placidus cusps (whole-sign only for now; Asc/MC already exact)
-- Aspect grid + merge with the Transit Scanner (NOTICINGPUP ENGINE)
-- Second fixture chart in the test suite
-- Per-planet orb tables
-- Minor/adjective stars toggle for ZWDS
+- Shadbala and ashtakavarga (held until they can be checked against a
+  reference implementation)
+- D30 and D60 (D60 needs birth time to the minute)
+- Adjective-star toggle for the ZWDS board on the site
+- `dlr.py` (the Da Liu Ren engine) is not in this repo yet
 
 ## tree.js — partnership screen
 

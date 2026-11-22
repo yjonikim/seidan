@@ -179,9 +179,11 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
       </label>
     </div>
   </div>
-  <div class="btnrow">
+  <div class="btnrow" style="align-items:end">
     <button id="calcBtn" class="seal">Calculate</button>
     <button id="saveBtn">Save chart</button>
+    <div style="margin-left:auto"><label for="asofDate">As-of date for the timing layers (blank = today)</label><input type="date" id="asofDate"></div>
+    <button id="asofClear">Today</button>
   </div>
 </fieldset>
 
@@ -236,6 +238,7 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
     <thead><tr><th>Graha</th><th>Sidereal</th><th>Bhāva</th><th>Nakshatra (pada)</th><th>Lord</th><th>D9</th><th>Dignity</th></tr></thead>
     <tbody></tbody>
   </table>
+  <div id="vargaOut"></div>
   <div id="yogaOut"></div>
   <div id="dashaOut"></div>
   <div id="drishtiOut"></div>
@@ -280,6 +283,6 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
 <script src="lunar.js"></script>
 <script src="iztro.min.js"></script>
 <script src="synastry.js?v=1"></script>
-<script src="app.js?v=13"></script>
+<script src="app.js?v=14"></script>
 </body>
 </html>

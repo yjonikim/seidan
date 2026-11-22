@@ -71,6 +71,13 @@
     }
   }
 
+  /* ---------- as-of date: every "today" layer reads this (blank field = now) ---------- */
+  function asOf() {
+    const v = $("asofDate") ? $("asofDate").value : "";
+    return /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(v + "T12:00:00Z") : new Date();
+  }
+  function asOfLabel() { const v = $("asofDate") ? $("asofDate").value : ""; return v ? "as of " + v : "today"; }
+
   /* ---------- shared time math ---------- */
   function utDate(p) {
     const [y, m, d] = p.date.split("-").map(Number);
@@ -169,7 +176,7 @@
                  (((L2 - L + 540) % 360) - 180) < 0;
       const house = ((Math.floor(L / 30) - ascSign + 12) % 12) + 1;
       const ph = cusps ? placidusHouse(cusps, L) : "—";
-      return { body: b, lon: L, rx, house, ph };
+      return { body: b, lon: L, lon2: L2, rx, house, ph };
     });
     return { rows, asc, mc, cusps };
   }
@@ -191,6 +198,12 @@
       `Profection age ${lp.age}: ${SIGNS[lp.profSign]} (${lp.lord} lord of the year).</p>` +
       `<table><thead><tr><th>Planet</th><th>Essential dignity</th><th>Bound</th><th>Face</th><th>Sect</th></tr></thead><tbody>`;
     for (const d of dg.out) html += `<tr><td>${d.body}</td><td>${d.dig}</td><td>${d.bound}</td><td>${d.face}</td><td>${d.sect}</td></tr>`;
+    html += "</tbody></table>";
+    const dmo = (x) => `${Math.floor(x)}\u00B0${String(Math.floor((x % 1) * 60 + 1e-9)).padStart(2, "0")}\u2032`;
+    html += `<p class="bazimeta">Aspects \u2014 traditional orbs (Sun 15\u00B0, Moon 12\u00B0, Mercury/Venus 7\u00B0, Mars 8\u00B0, Jupiter/Saturn 9\u00B0, outers 5\u00B0); in aspect when within the mean of the two orbs.</p>` +
+      `<table><thead><tr><th>Planet</th><th>Aspect</th><th>Planet</th><th class="num">Orb</th><th>Motion</th></tr></thead><tbody>`;
+    for (const x of natalAspects(w.rows, w.asc, w.mc))
+      html += `<tr><td>${x.a}</td><td>${x.name}${x.outOfSign ? " (out of sign)" : ""}</td><td>${x.b}</td><td class="num">${dmo(x.orb)}</td><td>${x.motion}</td></tr>`;
     $("dignityOut").innerHTML = html + "</tbody></table>";
     lastW = w;
     renderWheel(w, lastTransits);
@@ -255,12 +268,39 @@
     }
     return { isDay, out };
   }
+/* ---- natal aspects: Ptolemaic, traditional orbs, applying/separating ----
+   Each planet carries its own orb; two planets are in aspect when the distance
+   from exact is within the mean of their two orbs (the sum of the moieties).
+   Angles take half the planet's orb and get no applying/separating tag (they
+   move by the day's rotation, not along the zodiac). Outer×outer is skipped. */
+  const ORB = { Sun: 15, Moon: 12, Mercury: 7, Venus: 7, Mars: 8, Jupiter: 9, Saturn: 9, Uranus: 5, Neptune: 5, Pluto: 5 };
+  function natalAspects(rows, asc, mc) {
+    const ASPS = [[0, "conjunct"], [60, "sextile"], [90, "square"], [120, "trine"], [180, "opposite"]];
+    const OUT = ["Uranus", "Neptune", "Pluto"], sepOf = (a, b) => Math.abs(((a - b + 540) % 360) - 180), res = [];
+    const pts = rows.concat([{ body: "Asc", lon: asc, angle: true }, { body: "MC", lon: mc, angle: true }]);
+    for (let i = 0; i < pts.length; i++) for (let k = i + 1; k < pts.length; k++) {
+      const a = pts[i], b = pts[k];
+      if ((a.angle && b.angle) || (OUT.includes(a.body) && OUT.includes(b.body))) continue;
+      const allow = a.angle ? ORB[b.body] / 2 : b.angle ? ORB[a.body] / 2 : (ORB[a.body] + ORB[b.body]) / 2;
+      const s = sepOf(a.lon, b.lon);
+      for (const [ang, name] of ASPS) {
+        const o = Math.abs(s - ang); if (o > allow) continue;
+        let motion = "";
+        if (!a.angle && !b.angle) motion = Math.abs(sepOf(a.lon2, b.lon2) - ang) < o ? "applying" : "separating";
+        const signGap = (Math.floor(b.lon / 30) - Math.floor(a.lon / 30) + 12) % 12;
+        const inSign = [ang / 30, 12 - ang / 30].includes(signGap) || (ang === 0 && signGap === 0);
+        res.push({ a: a.body, b: b.body, name, orb: o, allow, motion, outOfSign: !inSign });
+        break;
+      }
+    }
+    return res.sort((x, y) => x.orb - y.orb);
+  }
   function lotsAndProfection(w, birthDateStr) {
     const sun = bodyLonCache.Sun, moon = bodyLonCache.Moon;
     const sunOff = ((sun - w.asc) + 360) % 360, isDay = sunOff >= 180;
     const fortune = ((isDay ? w.asc + moon - sun : w.asc + sun - moon) % 360 + 360) % 360;
     const spirit = ((isDay ? w.asc + sun - moon : w.asc + moon - sun) % 360 + 360) % 360;
-    const bd = new Date(birthDateStr), now = new Date();
+    const bd = new Date(birthDateStr), now = asOf();
     let age = now.getFullYear() - bd.getFullYear();
     const anniv = new Date(now.getFullYear(), bd.getMonth(), bd.getDate());
     if (now < anniv) age--;
@@ -328,7 +368,7 @@
              cycles: Math.floor(ageY / 75) };
   }
   function timingCalc(p, w) {
-    const bd = utDate(p), now = new Date();
+    const bd = utDate(p), now = asOf();
     const ageY = (now - bd) / (365.2422 * 864e5);
     const sunLon = bodyLonCache.Sun;
     const isDay = ((sunLon - w.asc) + 360) % 360 >= 180;
@@ -362,7 +402,7 @@
       (t.f.sub ? ` / ${t.f.sub} (sub until ${fmtAge(t.f.subEnd, bd)})` : " (node period, no subs)") +
       ` — major ${fmtAge(t.f.mStart, bd)} to ${fmtAge(t.f.mEnd, bd)}. ` +
       `Convention: nodes follow Mars; subs \u00D7years/70.\n` +
-      `Secondary progressions (today, day-for-year) — solar arc ${t.arc.toFixed(2)}\u00B0:</p>`;
+      `Secondary progressions (${asOfLabel()}, day-for-year) — solar arc ${t.arc.toFixed(2)}\u00B0:</p>`;
     h += `<table><thead><tr><th>Progressed</th><th>Position</th></tr></thead><tbody>`;
     for (const pr of t.prog) h += `<tr><td>p${pr.body}</td><td>${fmtLon(pr.lon)}</td></tr>`;
     h += `</tbody></table>`;
@@ -484,7 +524,7 @@
     const ec = lunar.getEightChar();
     const yun = ec.getYun(p.gender === "male" ? 1 : 0);
     const dm = ec.getDay()[0];
-    const nowY = new Date().getFullYear();
+    const nowY = asOf().getFullYear();
     const luckArr = yun.getDaYun().filter(x => x.getGanZhi()).slice(0, 9).map(x => ({
       gz: x.getGanZhi(), age: x.getStartAge(), year: x.getStartYear(),
       god: window.LunarUtil.SHI_SHEN[dm + x.getGanZhi()[0]] || "",
@@ -505,7 +545,7 @@
         { role: "Day 日", gz: ec.getDay(), hide: ec.getDayHideGan(), dm: true, god: "日主", zgods: ec.getDayShiShenZhi() },
         { role: "Hour 時", gz: ec.getTime(), hide: ec.getTimeHideGan(), god: ec.getTimeShiShenGan(), zgods: ec.getTimeShiShenZhi() },
       ],
-      today: (function(){ const n = window.Lunar.fromDate(new Date());
+      today: (function(){ const n = window.Lunar.fromDate(asOf());
         return `${n.getYearInGanZhi()} ${n.getMonthInGanZhi()} ${n.getDayInGanZhi()}`; })(),
       lunarStr: lunar.toString(),
     };
@@ -540,7 +580,7 @@
     lk.insertAdjacentHTML("beforeend", ss);
     $("baziMeta").innerHTML =
       `Lunar date: ${b.lunarStr}. Day master in red. Hour from ${b.timeUsed} time.\n` +
-      `Today's pillars: ${b.today}\n` +
+      `Pillars ${asOfLabel()}: ${b.today}\n` +
       `神煞 conventions: 天乙 uses 甲戊庚→丑未; group stars checked from year and day branch.`;
   }
 
@@ -627,7 +667,7 @@
     }
     /* vimshottari from Moon's nakshatra */
     const moon = grahas.find(x => x.body === "Moon");
-    const YR = 365.25 * 864e5, now = Date.now();
+    const YR = 365.25 * 864e5, now = asOf().getTime();
     const li = moon.nak.i % 9;
     let t0 = date.getTime() - moon.nak.frac * DASHA[li][1] * YR;
     const mds = [];
@@ -671,7 +711,7 @@
       kar: k === 0 ? "Ki\u1E43stughna" : k >= 57 ? ["\u015Aakuni","Chatu\u1E63pada","N\u0101ga"][k - 57] : KARM[(k - 1) % 7],
     };
     /* sadhe sati (today's transit Saturn vs natal Moon sign) */
-    const nowD = new Date();
+    const nowD = asOf();
     const satNow = ((bodyLon("Saturn", nowD) - lahiri(nowD)) % 360 + 360) % 360;
     const sh = ((Math.floor(satNow / 30) - j.G.Moon.sign + 12) % 12) + 1;
     j.sadhe = { satSign: Math.floor(satNow / 30), h: sh,
@@ -893,6 +933,23 @@
   }
   const fmtYM = (ms) => { const d = new Date(ms);
     return `${d.getUTCFullYear()}.${String(d.getUTCMonth() + 1).padStart(2, "0")}`; };
+  /* ---- vargas (Parashara): sign index per division for a sidereal longitude ---- */
+  const VARGA_ORDER = ["D1", "D2", "D3", "D4", "D7", "D9", "D10", "D12"];
+  const RASI3 = ["Mes", "Vrs", "Mit", "Kar", "Sim", "Kan", "Tul", "Vrc", "Dha", "Mak", "Kum", "Mee"];
+  function vargaSigns(L) {
+    const s = Math.floor(L / 30), d = L - s * 30, odd = s % 2 === 0;        /* Aries (index 0) is an odd sign */
+    const part = (n) => Math.min(n - 1, Math.floor(d / (30 / n) + 1e-9));
+    return {
+      D1: s,
+      D2: (d < 15) === odd ? 4 : 3,                                         /* hora: Sun's = Leo, Moon's = Cancer */
+      D3: (s + 4 * part(3)) % 12,                                           /* drekkana: 1st, 5th, 9th */
+      D4: (s + 3 * part(4)) % 12,                                           /* chaturthamsa: 1st, 4th, 7th, 10th */
+      D7: (s + (odd ? 0 : 6) + part(7)) % 12,                               /* saptamsa: odd from itself, even from the 7th */
+      D9: Math.floor(L / (10 / 3)) % 12,                                    /* navamsa */
+      D10: (s + (odd ? 0 : 8) + part(10)) % 12,                             /* dasamsa: odd from itself, even from the 9th */
+      D12: (s + part(12)) % 12,                                             /* dwadasamsa: from itself */
+    };
+  }
   function renderJyotish(j) {
     $("jyStyleBtn").textContent = `Chart style: ${jyStyle === "north" ? "North \u25C7" : "South \u25A6"}`;
     const draw = jyStyle === "north" ? northChart : southChart;
@@ -902,7 +959,7 @@
     $("panchOut").textContent =
       `Birth pa\u00F1ch\u0101\u1E45ga: ${j.panch.vara} \u00B7 ${j.panch.tithi} \u00B7 ${j.panch.ny} yoga \u00B7 ${j.panch.kar} kara\u1E47a ` +
       `(v\u0101ra from civil date \u2014 Vedic day runs sunrise\u2192sunrise, so pre-dawn births take the previous v\u0101ra)\n` +
-      `S\u0101\u1E0Dhe S\u0101t\u012B today: transit Saturn in ${RASI[j.sadhe.satSign]}, ${j.sadhe.h}th from natal Moon \u2192 ${j.sadhe.phase}`;
+      `S\u0101\u1E0Dhe S\u0101t\u012B ${asOfLabel()}: transit Saturn in ${RASI[j.sadhe.satSign]}, ${j.sadhe.h}th from natal Moon \u2192 ${j.sadhe.phase}`;
     tb.innerHTML = "";
     for (const g2 of j.grahas) {
       const tr = document.createElement("tr");
@@ -915,6 +972,11 @@
         `<td>${digBits.join(" ") || "\u2014"}</td>`;
       tb.appendChild(tr);
     }
+    let vh = `<p class="bazimeta">Vargas (Parashara divisions; vargottama = same sign in D1 and D9):</p><table><thead><tr><th>Graha</th>` +
+      VARGA_ORDER.map(v => `<th>${v}</th>`).join("") + `</tr></thead><tbody>`;
+    for (const g2 of j.grahas) { const v = vargaSigns(g2.lon);
+      vh += `<tr><td>${g2.body}${v.D1 === v.D9 ? ' <span class="rx">vargottama</span>' : ""}</td>` + VARGA_ORDER.map(k => `<td>${RASI3[v[k]]}</td>`).join("") + `</tr>`; }
+    $("vargaOut").innerHTML = vh + `</tbody></table>`;
     let yh = `<p class="bazimeta">Yogas \u2014 mechanical detection (presence, not strength); Moon ${j.waxing ? "waxing" : "waning"}, benefics: ${j.benefics.join(", ")}${j.mercAfflicted ? " (Mercury counted malefic: shares sign with a malefic)" : ""}:</p>`;
     if (!j.yogas.length) yh += `<p class="bazimeta">\u2014 none of the tracked set forms.</p>`;
     else {
@@ -995,6 +1057,8 @@
   });
   applyGloss();
   $("calcBtn").addEventListener("click", calculate);
+  $("asofDate").addEventListener("change", calculate);
+  $("asofClear").addEventListener("click", () => { $("asofDate").value = ""; calculate(); });
   $("saveBtn").addEventListener("click", () => {
     const p = readForm();
     if (!p.name) { showError("Give the chart a name to save it."); return; }

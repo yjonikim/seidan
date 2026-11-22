@@ -17,7 +17,9 @@
    --asof YYYY-MM-DD — compute the "today" layers (profection age, BaZi
    today's pillars, Sadhe Sati, vimshottari current-markers, firdaria/
    progressions/solar arc) at that date instead of now. Natal math is
-   unaffected; omit --asof for identical output to previous builds. */
+   unaffected; omit --asof for identical output to previous builds.
+   Western also lists natal aspects (traditional per-planet orbs, applying/
+   separating); Jyotish also prints a varga table (D1 D2 D3 D4 D7 D9 D10 D12). */
 "use strict";
 const A = require("astronomy-engine");
 const { Solar } = require("lunar-javascript");
@@ -135,7 +137,7 @@ for (const b of ["Sun","Moon","Mercury","Venus","Mars","Jupiter","Saturn","Uranu
   const rx = b !== "Sun" && b !== "Moon" && (((L2 - L + 540) % 360) - 180) < 0;
   const house = ((Math.floor(L / 30) - ascSign + 12) % 12) + 1;
   const ph = cusps ? placidusHouse(cusps, L) : "?";
-  rows.push({ body: b, lon: L, rx, house, ph });
+  rows.push({ body: b, lon: L, lon2: L2, rx, house, ph });
   if (want("west")) console.log(`${b.padEnd(8)} ${fmt(L)}  WS${house} P${ph}${rx ? "  Rx" : ""}`);
 }
 if (want("west")) {
@@ -147,6 +149,34 @@ if (want("west")) {
   } else {
     console.log("Placidus undefined at this latitude (polar circle) — whole-sign only.");
   }
+}
+
+/* ---- natal aspects: Ptolemaic, traditional orbs, applying/separating ----
+   Each planet carries its own orb; two planets are in aspect when the distance
+   from exact is within the mean of their two orbs (the sum of the moieties).
+   Angles take half the planet's orb and get no applying/separating tag (they
+   move by the day's rotation, not along the zodiac). Outer×outer is skipped. */
+const ORB = { Sun: 15, Moon: 12, Mercury: 7, Venus: 7, Mars: 8, Jupiter: 9, Saturn: 9, Uranus: 5, Neptune: 5, Pluto: 5 };
+function natalAspects(rows, asc, mc) {
+  const ASPS = [[0, "conjunct"], [60, "sextile"], [90, "square"], [120, "trine"], [180, "opposite"]];
+  const OUT = ["Uranus", "Neptune", "Pluto"], sepOf = (a, b) => Math.abs(((a - b + 540) % 360) - 180), res = [];
+  const pts = rows.concat([{ body: "Asc", lon: asc, angle: true }, { body: "MC", lon: mc, angle: true }]);
+  for (let i = 0; i < pts.length; i++) for (let k = i + 1; k < pts.length; k++) {
+    const a = pts[i], b = pts[k];
+    if ((a.angle && b.angle) || (OUT.includes(a.body) && OUT.includes(b.body))) continue;
+    const allow = a.angle ? ORB[b.body] / 2 : b.angle ? ORB[a.body] / 2 : (ORB[a.body] + ORB[b.body]) / 2;
+    const s = sepOf(a.lon, b.lon);
+    for (const [ang, name] of ASPS) {
+      const o = Math.abs(s - ang); if (o > allow) continue;
+      let motion = "";
+      if (!a.angle && !b.angle) motion = Math.abs(sepOf(a.lon2, b.lon2) - ang) < o ? "applying" : "separating";
+      const signGap = (Math.floor(b.lon / 30) - Math.floor(a.lon / 30) + 12) % 12;
+      const inSign = [ang / 30, 12 - ang / 30].includes(signGap) || (ang === 0 && signGap === 0);
+      res.push({ a: a.body, b: b.body, name, orb: o, allow, motion, outOfSign: !inSign });
+      break;
+    }
+  }
+  return res.sort((x, y) => x.orb - y.orb);
 }
 
 /* ---- dignities / sect / lots / profection ---- */
@@ -204,6 +234,10 @@ for (const r of rows) {
   if (["Moon","Venus","Mars"].includes(r.body)) sect = isDay ? "out of sect" : "of sect";
   console.log(`  ${r.body.padEnd(8)} ${(dl.join(", ") || "peregrine").padEnd(38)} bound:${bl.padEnd(8)} face:${fl.padEnd(8)} ${sect}`);
 }
+console.log("Aspects (traditional orbs, tightest first):");
+const dmo = (x) => `${Math.floor(x)}\u00B0${String(Math.floor((x % 1) * 60 + 1e-9)).padStart(2, "0")}\u2032`;
+for (const x of natalAspects(rows, asc, mc))
+  console.log(`  ${x.a.padEnd(8)} ${x.name.padEnd(9)} ${x.b.padEnd(8)} ${dmo(x.orb).padStart(6)}  ${x.motion.padEnd(10)}${x.outOfSign ? " out of sign" : ""}`);
 }
 
 
@@ -337,6 +371,28 @@ if (want("jyotish")) {
     const s = Math.floor(g.lon / 30), h = ((s - lagnaS + 12) % 12) + 1;
     const n = nakOf(g.lon);
     console.log(`${g.body.padEnd(8)} ${fmtS(g.lon)}  H${String(h).padEnd(3)} ${n.name} (${n.pada}) [${n.lord}]  D9 ${RASI[nav9(g.lon)]}${g.rx && g.body !== "Lagna" ? "  Rx" : ""}`);
+  }
+  {
+    /* ---- vargas (Parashara): sign index per division for a sidereal longitude ---- */
+    const VARGA_ORDER = ["D1", "D2", "D3", "D4", "D7", "D9", "D10", "D12"];
+    const RASI3 = ["Mes", "Vrs", "Mit", "Kar", "Sim", "Kan", "Tul", "Vrc", "Dha", "Mak", "Kum", "Mee"];
+    function vargaSigns(L) {
+      const s = Math.floor(L / 30), d = L - s * 30, odd = s % 2 === 0;        /* Aries (index 0) is an odd sign */
+      const part = (n) => Math.min(n - 1, Math.floor(d / (30 / n) + 1e-9));
+      return {
+        D1: s,
+        D2: (d < 15) === odd ? 4 : 3,                                         /* hora: Sun's = Leo, Moon's = Cancer */
+        D3: (s + 4 * part(3)) % 12,                                           /* drekkana: 1st, 5th, 9th */
+        D4: (s + 3 * part(4)) % 12,                                           /* chaturthamsa: 1st, 4th, 7th, 10th */
+        D7: (s + (odd ? 0 : 6) + part(7)) % 12,                               /* saptamsa: odd from itself, even from the 7th */
+        D9: Math.floor(L / (10 / 3)) % 12,                                    /* navamsa */
+        D10: (s + (odd ? 0 : 8) + part(10)) % 12,                             /* dasamsa: odd from itself, even from the 9th */
+        D12: (s + part(12)) % 12,                                             /* dwadasamsa: from itself */
+      };
+    }
+    console.log(`Vargas (Parashara):  ${VARGA_ORDER.map(v => v.padEnd(4)).join(" ")}`);
+    for (const g of gs) { const v = vargaSigns(g.lon);
+      console.log(`  ${g.body.padEnd(18)} ${VARGA_ORDER.map(k => RASI3[v[k]].padEnd(4)).join(" ")}${v.D1 === v.D9 ? " vargottama" : ""}`); }
   }
   /* panchanga + sadhe sati */
   {
