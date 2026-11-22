@@ -30,6 +30,7 @@ Engines, vendored as flat files (no CDN calls at runtime):
 | BaZi: na yin, life stages, 胎元 / 命宮 / 身宮, relations inside the chart and with the current luck pillar and year | yes | yes |
 | ZWDS board | yes | yes (`--full`, `--fly DATE`) |
 | Jyotish: rasi + navamsa charts, nakshatras, vargas, chara karakas, ashtakavarga, yogas, vimshottari, panchanga, Sadhe Sati | yes | yes (no drawn charts) |
+| Jyotish: Shadbala (six-fold strength, all six components, lords, planetary war) | yes | yes (`--full` for sub-parts, `--sb` for convention switches) |
 | As-of date for every "today" layer | date field by the Calculate button | `--asof DATE` |
 | EN glosses for hanzi | toggle | hanzi only |
 | Synastry | Synastry tab | `synastry.js` |
@@ -83,6 +84,16 @@ CLI and the site, so those layers print the same text in both places.
   is the set Jagannatha Hora uses; `--av alt` (or the picker on the site)
   gives the other. Both match PyJHora 5.0.5 cell for cell on the two fixture
   charts; the reference output is stored in `fixtures-pyjhora.json`.
+- Shadbala: lives in `shadbala.js`. Checked against onlinejyotish.com's table
+  on four charts (the standing fixture plus three made-up moments covering a
+  day birth, a waning Moon, a lone Mercury and two planetary wars); every
+  component agrees to within 0.2 virupa. Reference tables are in
+  `fixtures-shadbala.json`. The defaults are that site's conventions; the
+  textbook alternatives are behind `--sb` (`double`, `raman-values`,
+  `modern-mean`, `declination`, `raman-war`, `degree-moola`, `equal-hora`),
+  each explained in the `shadbala.js` header. PyJHora was tried first and
+  dropped for this: it does not fold arcs over 180°, so its Dig and Cheshta
+  values are wrong. Ishta/Kashta phala and Bhava bala are not built.
 - Zodiacal releasing: Valens' minor years, 360-day years, loosing of the bond
   after a full Level 2 circuit. Details in the `extras.js` header.
 - ZWDS: iztro's default school. BaZi 天乙貴人: 甲戊庚 → 丑未.
@@ -91,7 +102,7 @@ CLI and the site, so those layers print the same text in both places.
 
 ```
 npm install lunar-javascript iztro astronomy-engine
-node run-tests.js            # 66 assertions: two fixture charts, CLI output, extras, stars, mansions, ashtakavarga
+node run-tests.js            # 87 assertions: two fixture charts, CLI output, extras, stars, mansions, ashtakavarga, shadbala
 node synastry.js --selftest  # 21 checks
 node tree.js --selftest      # 10 checks
 node blind.js --selftest     # 7 checks

@@ -189,3 +189,33 @@ console.log("solar-time tests passed.");
   }
   console.log(`ashtakavarga tests passed (${pass} assertions in all).`);
 }
+
+// --- shadbala vs onlinejyotish.com (appended v20). fixtures-shadbala.json holds the reference tables. ---
+{
+  const SB = require("./shadbala.js"), F = require("./fixtures-shadbala.json").charts, P = SB.PLANETS;
+  const run = (b, opts) => { const [y, m, d] = b.date.split("-").map(Number), [hh, mm] = b.time.split(":").map(Number);
+    return SB.compute(A, SB.inputsFor(A, new Date(Date.UTC(y, m - 1, d, hh, mm) - b.clockoff * 3600e3), b.lat, b.lon, b.clockoff), opts); };
+  const worst = (r, ref, k) => Math.max(...P.map((p, i) => Math.abs(r.parts[k][p] - ref[k][i])));
+  for (const [who, c] of Object.entries(F)) {
+    const r = run(c.birth);
+    ok(`Shadbala ${who}: Sthana, Dig, Naisargika match the reference to 0.02`, ["sthana", "dig", "naisargika"].every(k => worst(r, c.reference, k) <= 0.02));
+    ok(`Shadbala ${who}: Kala and Drik match the reference to 0.05`, ["kala", "drik"].every(k => worst(r, c.reference, k) <= 0.05));
+    ok(`Shadbala ${who}: Cheshta and the totals match the reference to 0.25`, ["cheshta", "total"].every(k => worst(r, c.reference, k) <= 0.25));
+  }
+  const j = run(F.joni.birth), l = j.lords;
+  ok("Shadbala joni: year and month lord Mars, weekday Jupiter, hora Moon, night third Moon", l.abda === "Mars" && l.masa === "Mars" && l.vara === "Jupiter" && l.hora === "Moon" && l.tribhaga === "Moon");
+  ok("Shadbala joni: rank by % of required is Mars, Sun, Saturn, Jupiter, Venus, Moon, Mercury", j.rank.join() === "Mars,Sun,Saturn,Jupiter,Venus,Moon,Mercury");
+  ok("Shadbala joni: Mercury with the Sun counts malefic for Drik; waxing Moon does not", j.drikMalefics.join() === "Sun,Mars,Mercury,Saturn");
+  const c3 = run(F.chennai.birth), c4 = run(F.war2.birth);
+  ok("Shadbala: waning Moon is malefic and a lone Mercury benefic for Drik", c3.drikMalefics.join() === "Sun,Moon,Mars,Saturn");
+  ok("Shadbala wars: Venus over Saturn (1963) and Jupiter over Venus (1965), the earlier planet winning", c3.wars.length === 1 && c3.wars[0].win === "Venus" && c3.wars[0].lose === "Saturn" && c4.wars.length === 1 && c4.wars[0].win === "Jupiter" && c4.wars[0].lose === "Venus");
+  ok("Shadbala wars: the two totals trade places", Math.abs(c4.parts.total.Jupiter - 378.47) < 0.1 && Math.abs(c4.parts.total.Venus - 376.91) < 0.1);
+  ok("Drishti curve: 7th aspect full for all; Saturn full on the 3rd and 10th, Mars on the 4th and 8th, Jupiter on the 5th and 9th",
+     ["Sun", "Mars", "Jupiter", "Saturn"].every(p => SB.drishti(p, 180) === 60) && SB.drishti("Saturn", 60) === 60 && SB.drishti("Saturn", 270) === 60 &&
+     SB.drishti("Mars", 90) === 60 && SB.drishti("Mars", 210) === 60 && SB.drishti("Jupiter", 120) === 60 && SB.drishti("Jupiter", 240) === 60 && SB.drishti("Sun", 20) === 0);
+  const dbl = run(F.joni.birth, { double: true });
+  ok("Shadbala --sb double: Sun's Ayana and Moon's Paksha doubled, nothing else moves", Math.abs(dbl.parts.kala.Sun - j.parts.kala.Sun - j.parts.ayana.Sun) < 1e-9 && Math.abs(dbl.parts.kala.Moon - j.parts.kala.Moon - j.parts.paksha.Moon) < 1e-9 && dbl.parts.kala.Mars === j.parts.kala.Mars && dbl.parts.cheshta.Sun === j.parts.cheshta.Sun);
+  const cli = require("child_process").execFileSync("node", ["chart.js", "1988-08-18", "20:44", "+10", "+9", "37.5665", "126.978", "female", "--only", "jyotish"], { encoding: "utf8" });
+  ok("CLI prints the Shadbala table with the Sun at 9.81 rupas", /Shadbala \(virupas/.test(cli) && /Rupas\s+9\.81\s+6\.83\s+7\.56/.test(cli));
+  console.log(`shadbala tests passed (${pass} assertions in all).`);
+}

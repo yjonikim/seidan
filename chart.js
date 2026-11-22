@@ -22,6 +22,9 @@
    separating); Jyotish also prints a varga table (D1 D2 D3 D4 D7 D9 D10 D12 D30).
    --av jhora|alt — which printing of the Moon/Venus ashtakavarga tables to use
    (default jhora, the Jagannatha Hora set; see the extras.js header).
+   Jyotish also prints Shadbala (shadbala.js, validated against onlinejyotish.com);
+   --full adds the sub-parts. --sb a,b,... switches conventions: double, raman-values,
+   modern-mean, declination, raman-war, degree-moola, equal-hora (see the shadbala.js header).
    --mansion N — when the Moon is in Arabic mansion N (tropical, 28 equal parts)
    over the next --days (default 60) from today or --asof; times in UT unless
    --tz OFFSET (hours, e.g. --tz -5) is given. Always prints when given.
@@ -37,7 +40,7 @@ const { astro } = require("iztro");
 
 const [date, time, clockoffS, stdoffS, latS, lonS, gender] = process.argv.slice(2);
 if (!gender) {
-  console.error("Usage: node chart.js DATE TIME CLOCK_OFF STD_OFF LAT LON male|female [--std-time] [--full] [--fly YYYY-MM-DD] [--transit YYYY-MM-DD] [--only west,bazi,zwds,jyotish,timing] [--asof YYYY-MM-DD]");
+  console.error("Usage: node chart.js DATE TIME CLOCK_OFF STD_OFF LAT LON male|female [--std-time] [--full] [--fly YYYY-MM-DD] [--transit YYYY-MM-DD] [--only west,bazi,zwds,jyotish,timing] [--asof YYYY-MM-DD] [--av jhora|alt] [--sb double,raman-values,...]");
   process.exit(1);
 }
 const useSolar = !process.argv.includes("--std-time");
@@ -468,6 +471,14 @@ if (want("jyotish")) {
   { const avI = process.argv.indexOf("--av"), avV = avI > -1 ? process.argv[avI + 1] : "jhora";
     if (!["jhora", "alt"].includes(avV)) { console.error("--av takes jhora (default) or alt"); process.exit(1); }
     for (const line of X.ashtakavarga(gs, avV)) console.log(line); }
+  { /* shadbala (shadbala.js). --sb takes a comma list of convention switches; --full adds the sub-parts */
+    const SB = require("./shadbala.js"), sbI = process.argv.indexOf("--sb"), sw = sbI > -1 ? (process.argv[sbI + 1] || "").split(",") : [];
+    const KNOWN_SB = { double: ["double", true], "raman-values": ["sapta", "raman"], "modern-mean": ["mean", "modern"], declination: ["ayana", "declination"],
+                       "raman-war": ["yuddha", "raman"], "degree-moola": ["moola", "degrees"], "equal-hora": ["hora", "equal"] };
+    const sbOpts = {};
+    for (const k of sw) { if (!KNOWN_SB[k]) { console.error(`--sb takes a comma list of: ${Object.keys(KNOWN_SB).join(", ")}`); process.exit(1); } sbOpts[KNOWN_SB[k][0]] = KNOWN_SB[k][1]; }
+    const trop = {}; for (const b of SB.PLANETS) trop[b] = rows.find(x => x.body === b).lon;
+    for (const line of SB.report(A, { ut, lat, lon, clockoff, ayan, trop, asc, mc }, sbOpts, full)) console.log(line); }
   /* panchanga + sadhe sati */
   {
     const TITHI = ["Pratipada","Dvitiya","Tritiya","Chaturthi","Panchami","Shashthi","Saptami","Ashtami","Navami","Dashami","Ekadashi","Dvadashi","Trayodashi","Chaturdashi"];

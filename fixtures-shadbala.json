@@ -1,0 +1,81 @@
+{
+ "_note": "Reference Shadbala tables read from onlinejyotish.com (free Vedic horoscope report, Lahiri, mean node) on 2026-11-22. Planet order Sun..Saturn, virupas. joni is the repo's standing fixture chart; the other three are made-up moments chosen to exercise a day birth, a waning Moon, an unafflicted Mercury and two planetary wars. seidan's shadbala.js reproduces every cell to within 0.2 virupa; the residue is Cheshta, where the reference's mean-longitude constants are only known to a few decimals.",
+ "charts": {
+  "joni": {
+   "about": "Seoul, clock on Korean summer time (UTC+10)",
+   "birth": {
+    "date": "1988-08-18",
+    "time": "20:44",
+    "clockoff": 10,
+    "lat": 37.566,
+    "lon": 126.9784
+   },
+   "reference": {
+    "sthana": [312.67, 93.81, 185.57, 223.53, 190.75, 175.56, 143.89],
+    "dig": [23.17, 15.3, 21.73, 1.45, 30.67, 52.06, 23.3],
+    "kala": [109.39, 222.28, 154.64, 121.38, 207.39, 104.53, 133.61],
+    "cheshta": [46.58, 21.52, 50.87, 11.95, 29.95, 37.37, 40.09],
+    "naisargika": [60, 51.43, 17.14, 25.71, 34.29, 42.86, 8.57],
+    "drik": [37.11, 5.5, 23.76, 52.8, 14.89, -17.7, 87.24],
+    "total": [588.92, 409.85, 453.7, 436.83, 507.93, 394.68, 436.7]
+   }
+  },
+  "delhi": {
+   "about": "New Delhi; day birth, waxing Moon, Mercury with the Sun",
+   "birth": {
+    "date": "1975-11-05",
+    "time": "10:30",
+    "clockoff": 5.5,
+    "lat": 28.65195,
+    "lon": 77.23149
+   },
+   "reference": {
+    "sthana": [121.88, 139.72, 182.29, 164.46, 188.09, 222.31, 126.46],
+    "dig": [51.75, 15.76, 25.08, 38.66, 25.12, 7.26, 49.76],
+    "kala": [205.16, 72.01, 180.02, 156.58, 158.03, 106.83, 65.43],
+    "cheshta": [10.55, 7.51, 50.78, 19.58, 51.89, 36.97, 35.43],
+    "naisargika": [60, 51.43, 17.14, 25.71, 34.29, 42.86, 8.57],
+    "drik": [46.01, 67.82, 65.06, 47.76, 29.52, -0.58, 78.56],
+    "total": [495.34, 354.24, 520.37, 452.76, 486.93, 415.65, 364.2]
+   }
+  },
+  "chennai": {
+   "about": "Chennai; waning Moon, Mercury alone, Venus-Saturn war",
+   "birth": {
+    "date": "1963-03-20",
+    "time": "21:15",
+    "clockoff": 5.5,
+    "lat": 13.08784,
+    "lon": 80.27847
+   },
+   "reference": {
+    "sthana": [198.66, 189.45, 184.3, 171.24, 179.39, 202.52, 192.13],
+    "dig": [15.93, 54.38, 57.97, 17.7, 15.39, 57.54, 32.08],
+    "kala": [113.22, 198.14, 137.35, 221.74, 124.92, 48.8, 131.18],
+    "cheshta": [29.66, 21.55, 47.25, 2.5, 0.05, 26.51, 13.05],
+    "naisargika": [60, 51.43, 17.14, 25.71, 34.29, 42.86, 8.57],
+    "drik": [-17.82, -9.05, 50.83, -14.81, -16.77, -15.0, -15.0],
+    "total": [399.65, 505.89, 494.85, 424.09, 337.27, 363.23, 362.02]
+   }
+  },
+  "war2": {
+   "about": "Chennai; waning Moon, Jupiter-Venus war, Saturn late in Aquarius",
+   "birth": {
+    "date": "1965-05-17",
+    "time": "21:15",
+    "clockoff": 5.5,
+    "lat": 13.08784,
+    "lon": 80.27847
+   },
+   "reference": {
+    "sthana": [143.29, 161.26, 141.18, 173.2, 169.45, 185.85, 191.18],
+    "dig": [14.61, 22.83, 50.08, 20.82, 9.9, 42.28, 23.47],
+    "kala": [77.11, 321.43, 92.59, 202.87, 184.28, 121.18, 91.13],
+    "cheshta": [54.72, 51.79, 43.19, 18.05, 3.29, 7.43, 23.39],
+    "naisargika": [60, 51.43, 17.14, 25.71, 34.29, 42.86, 8.57],
+    "drik": [-22.14, 86.12, 68.68, -23.1, -22.73, -22.69, -11.33],
+    "total": [327.58, 694.85, 412.85, 417.56, 378.47, 376.91, 326.41]
+   }
+  }
+ }
+}

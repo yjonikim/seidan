@@ -773,6 +773,8 @@
       asp.push({ body: g2.body, house: g2.house, hits: hs });
     }
     const j = { ayan, lagna, lagnaSign, grahas, mds, curMd, ads, asp };
+    { const trop = {}; for (const b of ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn"]) trop[b] = w.rows.find(x => x.body === b).lon;
+      j.sbIn = { ut: date, lat: p.lat, lon: p.lon, clockoff: p.clockoff, ayan, trop, asc: w.asc, mc: w.mc }; }
     annotateJy(j);
     j.yogas = calcYogas(j);
     /* birth panchanga (sidereal Sun/Moon) */
@@ -1060,6 +1062,7 @@
     $("vargaOut").innerHTML = vh + `</tbody></table>`;
     try { $("karakaOut").textContent = window.SeidanExtras.charaKarakas(j.grahas).join("\n"); } catch (err) { $("karakaOut").textContent = ""; }
     try { $("avOut").textContent = window.SeidanExtras.ashtakavarga(j.grahas, $("avVariant").value).join("\n"); } catch (err) { $("avOut").textContent = ""; }
+    try { $("sbOut").textContent = window.SeidanShadbala.report(window.Astronomy, j.sbIn, {}, true).join("\n"); } catch (err) { $("sbOut").textContent = ""; }
     let yh = `<p class="bazimeta">Yogas \u2014 mechanical detection (presence, not strength); Moon ${j.waxing ? "waxing" : "waning"}, benefics: ${j.benefics.join(", ")}${j.mercAfflicted ? " (Mercury counted malefic: shares sign with a malefic)" : ""}:</p>`;
     if (!j.yogas.length) yh += `<p class="bazimeta">\u2014 none of the tracked set forms.</p>`;
     else {
