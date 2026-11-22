@@ -1179,6 +1179,35 @@
   });
   document.querySelector('nav [data-tab="blind"]').addEventListener("click", renderBlindPick);
 
+  /* ---------- synastry tab (engine lives in synastry.js, shared with the CLI) ---------- */
+  function renderSynPick() {
+    const names = Object.keys(getProfiles()).sort();
+    for (const id of ["synA", "synB"]) {
+      const sel = $(id), keep = sel.value; sel.innerHTML = "";
+      for (const n of names) { const o = document.createElement("option"); o.value = n; o.textContent = n; sel.appendChild(o); }
+      if (names.includes(keep)) sel.value = keep;
+      else if (id === "synB" && names.length > 1) sel.value = names.find(n => n !== $("synA").value);
+    }
+  }
+  $("synGo").addEventListener("click", () => {
+    const S = window.SeidanSynastry, all = getProfiles(), out = $("synOut");
+    const a = all[$("synA").value], b = all[$("synB").value];
+    if (!S) { out.textContent = "synastry.js did not load."; return; }
+    if (!a || !b) { out.textContent = "Save at least two charts first."; return; }
+    if (a === b) { out.textContent = "Pick two different charts."; return; }
+    const only = new Set(Array.from($("synOnly").querySelectorAll("input:checked")).map(c => c.value));
+    if (!only.size) { out.textContent = "Tick at least one system."; return; }
+    try {
+      const mk = (p, nt) => S.build(Object.assign({}, p, { time: nt ? "-" : p.time }));
+      out.textContent = S.report(mk(a, $("synAnt").checked), mk(b, $("synBnt").checked), (k) => only.has(k)).join("\n");
+    } catch (err) { out.textContent = "Comparison failed: " + err.message; }
+  });
+  $("synCopy").addEventListener("click", async () => {
+    const t = $("synOut").textContent; if (!t) return;
+    try { await navigator.clipboard.writeText(t); } catch { /* clipboard blocked: the text is selectable */ }
+  });
+  document.querySelector('nav [data-tab="synastry"]').addEventListener("click", renderSynPick);
+
   /* first run: seed Joni's chart so it's zero-entry */
   if (!Object.keys(getProfiles()).length) {
     const joni = { name: "Joni", date: "1988-08-18", time: "20:44",
@@ -1188,5 +1217,5 @@
   refreshProfileList();
   const first = getProfiles()[$("profileSel").value];
   if (first) { fillForm(first); calculate(); }
-  renderBlindPick(); renderBlindState();
+  renderBlindPick(); renderBlindState(); renderSynPick();
 })();

@@ -41,10 +41,13 @@
            grid. VALIDATION: --selftest replays a published worked example
            (Shravana/Capricorn bride × Chitra/Virgo groom = 17.5) and matches
            it koota for koota. One example is not a full audit of every cell. */
+(function () {
 "use strict";
-const A = require("astronomy-engine");
-const { Solar, LunarUtil } = require("lunar-javascript");
-const { astro } = require("iztro");
+/* Runs in Node (CLI) and in the browser (the site's Synastry tab loads this same file). */
+const IS_NODE = typeof module !== "undefined" && !!module.exports;
+const A = IS_NODE ? require("astronomy-engine") : window.Astronomy;
+const { Solar, LunarUtil } = IS_NODE ? require("lunar-javascript") : window;
+const { astro } = IS_NODE ? require("iztro") : window.iztro;
 
 const DEFAULT_SELF = { name: "Joni", date: "1988-08-18", time: "20:44", clockoff: 10, stdoff: 9,
                        lat: 37.5665, lon: 126.978, gender: "female" };
@@ -470,18 +473,20 @@ function jyotish(a, b) {
 }
 
 /* ================= report / CLI ================= */
-function run(a, b, want) {
-  const out = {};
-  console.log(`=== SYNASTRY: ${a.name} × ${b.name} ===`);
-  for (const c of [a, b]) console.log(`${c.name}: ${c.timed ? `Asc ${fmt(c.asc)}, ` : "NO BIRTH TIME, "}Sun ${fmt(c.pos.Sun)}${c.pos.Moon !== undefined ? `, Moon ${fmt(c.pos.Moon)}` : ""}`);
+function report(a, b, want) {
+  const L = [];
+  L.push(`=== SYNASTRY: ${a.name} × ${b.name} ===`);
+  for (const c of [a, b]) L.push(`${c.name}: ${c.timed ? `Asc ${fmt(c.asc)}, ` : "NO BIRTH TIME, "}Sun ${fmt(c.pos.Sun)}${c.pos.Moon !== undefined ? `, Moon ${fmt(c.pos.Moon)}` : ""}`);
   for (const [key, fn] of [["west", west], ["bazi", bazi], ["zwds", zwds], ["jyotish", jyotish]])
-    if (want(key)) { out[key] = fn(a, b); console.log(out[key].lines.join("\n")); }
-  console.log("\nMechanical listing: nothing above is weighted or scored except the ashtakoota. Conventions in the file header.");
-  return out;
+    if (!want || want(key)) L.push(...fn(a, b).lines);
+  L.push("\nMechanical listing: nothing above is weighted or scored except the ashtakoota. Conventions in the synastry.js header.");
+  return L;
 }
-module.exports = { build, west, westAspects, bazi, zwds, jyotish, ashtakoota, moonFacts, DEFAULT_SELF };
+function run(a, b, want) { console.log(report(a, b, want).join("\n")); }
+const API = { build, report, west, westAspects, bazi, zwds, jyotish, ashtakoota, moonFacts, DEFAULT_SELF };
+if (IS_NODE) module.exports = API; else window.SeidanSynastry = API;
 
-if (require.main === module) {
+if (IS_NODE && require.main === module) {
   const argv = process.argv.slice(2);
   const VAL = ["--name", "--self", "--selfname", "--only"];
   const flag = (f) => { const i = argv.indexOf(f); return i > -1 ? argv[i + 1] : null; };
@@ -546,3 +551,4 @@ function selftest(parse) {
   for (const [label, cond] of checks) { assert(cond, "FAIL: " + label); console.log("ok —", label); }
   console.log(`\n${checks.length} checks passed`);
 }
+})();

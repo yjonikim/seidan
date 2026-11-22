@@ -66,6 +66,10 @@ section[role="tabpanel"]{padding:1.1rem 0}
 .blindpick label,.blindopt{display:flex;align-items:center;gap:.4rem;font-size:.92rem}
 .blindpick input,.blindopt input{width:auto;margin:0}
 #blindPacket,#blindReveal{width:100%;box-sizing:border-box;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.74rem;line-height:1.35;margin-top:.5rem;background:transparent;color:var(--ink);border:1px solid var(--rule);padding:.5rem}
+.synrow{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media (max-width:480px){.synrow{grid-template-columns:1fr}}
+#synOut{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.74rem;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:.8rem}
+#blindMsg{margin-top:.6rem}
 .blindrow{display:flex;align-items:center;gap:.6rem;margin:.25rem 0;font-size:.92rem}
 .blindrow select{width:auto;min-width:11rem}
 .blindverdict{font-weight:700;margin:.7rem 0 .2rem}
@@ -124,6 +128,7 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
 @media (max-width:480px){.jycharts{grid-template-columns:1fr}}
 @media (max-width:480px){
   body{padding:.7rem}
+  nav button{font-size:.78rem;padding:.45rem .1rem}
   .pillar .gan,.pillar .zhi{font-size:1.5rem}
   .palace{min-height:5.2rem;font-size:.62rem}
   .palace .major{font-size:.8rem}
@@ -133,7 +138,7 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
   .profilebar,fieldset,nav,.btnrow,footer,.errbox{display:none!important}
   section[role="tabpanel"]{display:block!important;page-break-inside:avoid}
   section[role="tabpanel"][hidden]{display:block!important}
-  #panel-blind{display:none!important}
+  #panel-blind,#panel-synastry{display:none!important}
   body{max-width:100%}
 }
 </style>
@@ -187,6 +192,7 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
   <button role="tab" aria-selected="false" data-tab="bazi">BaZi 四柱</button>
   <button role="tab" aria-selected="false" data-tab="zwds">ZWDS 紫微</button>
   <button role="tab" aria-selected="false" data-tab="jyotish">Jyotish ज्योतिष</button>
+  <button role="tab" aria-selected="false" data-tab="synastry">Synastry</button>
   <button role="tab" aria-selected="false" data-tab="blind">Blind test</button>
 </nav>
 
@@ -236,6 +242,24 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
   <p class="bazimeta" id="jyMeta"></p>
 </section>
 
+<section role="tabpanel" id="panel-synastry" hidden>
+  <p class="bazimeta">Two saved charts read against each other in all four systems. A neutral listing: nothing is weighted or scored except the Jyotish ashtakoota. Tick "time unknown" to drop everything that depends on the birth hour for that person.</p>
+  <div class="synrow">
+    <div><label for="synA">Person A</label><select id="synA"></select>
+      <label class="blindopt"><input type="checkbox" id="synAnt"> time unknown</label></div>
+    <div><label for="synB">Person B</label><select id="synB"></select>
+      <label class="blindopt"><input type="checkbox" id="synBnt"> time unknown</label></div>
+  </div>
+  <div class="blindpick" id="synOnly">
+    <label><input type="checkbox" value="west" checked>Western</label>
+    <label><input type="checkbox" value="bazi" checked>BaZi</label>
+    <label><input type="checkbox" value="zwds" checked>ZWDS</label>
+    <label><input type="checkbox" value="jyotish" checked>Jyotish</label>
+  </div>
+  <div class="btnrow"><button id="synGo" class="seal">Compare</button><button id="synCopy">Copy text</button></div>
+  <pre id="synOut"></pre>
+</section>
+
 <section role="tabpanel" id="panel-blind" hidden>
   <p class="bazimeta">Blind chart-matching (Vernon Clark style). Tick three or more saved charts. The page shuffles them, strips names and birth data, and builds a packet to paste to a reader. The answer key never leaves this browser until you score. A chart's positions still encode its birth date, so this only blinds a reader who has no birth data on file for these people.</p>
   <div id="blindPick" class="blindpick"></div>
@@ -255,6 +279,7 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
 <script src="astronomy.browser.min.js"></script>
 <script src="lunar.js"></script>
 <script src="iztro.min.js"></script>
-<script src="app.js?v=12"></script>
+<script src="synastry.js?v=1"></script>
+<script src="app.js?v=13"></script>
 </body>
 </html>
