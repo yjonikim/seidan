@@ -1059,6 +1059,7 @@
       vh += `<tr><td>${g2.body}${v.D1 === v.D9 ? ' <span class="rx">vargottama</span>' : ""}</td>` + VARGA_ORDER.map(k => `<td>${RASI3[v[k]]}</td>`).join("") + `</tr>`; }
     $("vargaOut").innerHTML = vh + `</tbody></table>`;
     try { $("karakaOut").textContent = window.SeidanExtras.charaKarakas(j.grahas).join("\n"); } catch (err) { $("karakaOut").textContent = ""; }
+    try { $("avOut").textContent = window.SeidanExtras.ashtakavarga(j.grahas, $("avVariant").value).join("\n"); } catch (err) { $("avOut").textContent = ""; }
     let yh = `<p class="bazimeta">Yogas \u2014 mechanical detection (presence, not strength); Moon ${j.waxing ? "waxing" : "waning"}, benefics: ${j.benefics.join(", ")}${j.mercAfflicted ? " (Mercury counted malefic: shares sign with a malefic)" : ""}:</p>`;
     if (!j.yogas.length) yh += `<p class="bazimeta">\u2014 none of the tracked set forms.</p>`;
     else {
@@ -1153,6 +1154,8 @@
     sel.value = localStorage.getItem("calculador.mansion") || "3";
     sel.addEventListener("change", () => { localStorage.setItem("calculador.mansion", sel.value); renderMansion(); });
   })();
+  $("avVariant").value = localStorage.getItem("calculador.av") || "jhora";
+  $("avVariant").addEventListener("change", () => { localStorage.setItem("calculador.av", $("avVariant").value); calculate(); });
   $("asofDate").addEventListener("change", renderMansion);
   $("asofDate").addEventListener("change", calculate);
   $("zwDetailBtn").addEventListener("click", () => {

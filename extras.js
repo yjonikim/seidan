@@ -208,6 +208,54 @@ function mansionReport(A, o) {      /* o: { n, from, days, tzHours, tzLabel } */
   return L;
 }
 
+/* ---------------- ashtakavarga (Parashara) ----------------
+   Bhinnashtakavarga: for each of the seven planets, a sign gains one bindu from each of the
+   eight reference points (seven planets + lagna) that counts it a benefic place. Places are
+   counted inclusively from the reference point's own sign. Row totals are fixed by the tables
+   (Sun 48, Moon 49, Mars 39, Mercury 54, Jupiter 56, Venus 52, Saturn 39 = 337); sarvashtakavarga
+   is the seven rows summed (lagna contributes as a reference point but has no row here).
+   TWO PRINTED VARIANTS exist for four entries in the Moon's and Venus's tables; the row totals
+   are the same either way. "jhora" (default) is the set Jagannatha Hora and PyJHora use:
+   Moon counts the 9th from itself and the 2nd from Jupiter, not the 9th from Mars or the 12th
+   from Jupiter; Venus counts the 4th from Mars, not the 5th. "alt" is the other common
+   printing, with each of those swapped. Both were checked cell for cell against PyJHora 5.0.5
+   (its default, and its variant switches turned off) on both fixture charts. */
+const AV_REF = ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn", "Lagna"];
+const AV = {
+  Sun:     [[1,2,4,7,8,9,10,11], [3,6,10,11], [1,2,4,7,8,9,10,11], [3,5,6,9,10,11,12], [5,6,9,11], [6,7,12], [1,2,4,7,8,9,10,11], [3,4,6,10,11,12]],
+  Moon:    [[3,6,7,8,10,11], [1,3,6,7,9,10,11], [2,3,5,6,10,11], [1,3,4,5,7,8,10,11], [1,2,4,7,8,10,11], [3,4,5,7,9,10,11], [3,5,6,11], [3,6,10,11]],
+  Mars:    [[3,5,6,10,11], [3,6,11], [1,2,4,7,8,10,11], [3,5,6,11], [6,10,11,12], [6,8,11,12], [1,4,7,8,9,10,11], [1,3,6,10,11]],
+  Mercury: [[5,6,9,11,12], [2,4,6,8,10,11], [1,2,4,7,8,9,10,11], [1,3,5,6,9,10,11,12], [6,8,11,12], [1,2,3,4,5,8,9,11], [1,2,4,7,8,9,10,11], [1,2,4,6,8,10,11]],
+  Jupiter: [[1,2,3,4,7,8,9,10,11], [2,5,7,9,11], [1,2,4,7,8,10,11], [1,2,4,5,6,9,10,11], [1,2,3,4,7,8,10,11], [2,5,6,9,10,11], [3,5,6,12], [1,2,4,5,6,7,9,10,11]],
+  Venus:   [[8,11,12], [1,2,3,4,5,8,9,11,12], [3,4,6,9,11,12], [3,5,6,9,11], [5,8,9,10,11], [1,2,3,4,5,8,9,10,11], [3,4,5,8,9,10,11], [1,2,3,4,5,8,9,11]],
+  Saturn:  [[1,2,4,7,8,10,11], [3,6,11], [3,5,6,10,11,12], [6,8,9,10,11,12], [5,6,11,12], [6,11,12], [3,5,6,11], [1,3,4,6,10,11]],
+};
+const AV_ALT = {            /* the four entries that differ in the other printing: [planet][reference index] */
+  Moon:  { 1: [1,3,6,7,10,11], 2: [2,3,5,6,9,10,11], 4: [1,4,7,8,10,11,12] },
+  Venus: { 2: [3,5,6,9,11,12] },
+};
+function ashtakavargaTable(signs, variant) { /* signs: { Sun..Saturn, Lagna } as 0-11 sidereal sign indexes */
+  const bav = {}, sav = new Array(12).fill(0);
+  for (const p of AV_REF.slice(0, 7)) {
+    bav[p] = new Array(12).fill(0);
+    AV_REF.forEach((ref, i) => { const places = (variant === "alt" && AV_ALT[p] && AV_ALT[p][i]) || AV[p][i];
+      for (const place of places) bav[p][(signs[ref] + place - 1) % 12]++; });
+    bav[p].forEach((v, i) => { sav[i] += v; });
+  }
+  return { bav, sav };
+}
+function ashtakavarga(grahas, variant) {     /* grahas: [{ body, lon (sidereal) }] incl. Lagna */
+  const R3 = ["Mes","Vrs","Mit","Kar","Sim","Kan","Tul","Vrc","Dha","Mak","Kum","Mee"], signs = {};
+  for (const g of grahas) signs[g.body] = Math.floor(g.lon / 30);
+  const { bav, sav } = ashtakavargaTable(signs, variant), L = [];
+  const row = (label, arr, mark) => `  ${label.padEnd(8)} ${arr.map((v, i) => (String(v) + (i === mark ? "*" : " ")).padStart(4)).join("")}  ${String(arr.reduce((a, b) => a + b, 0)).padStart(4)}`;
+  L.push(`Ashtakavarga (bindus per sign; * = the sign that planet occupies; ${variant === "alt" ? "alternate Moon/Venus tables" : "Jagannatha Hora tables"}):`);
+  L.push(`  ${"".padEnd(8)} ${R3.map(x => x.padStart(3) + " ").join("")}   sum`);
+  for (const p of AV_REF.slice(0, 7)) L.push(row(p, bav[p], signs[p]));
+  L.push(row("SAV", sav, signs.Lagna) + "   (* = lagna; 28 is the average sign)");
+  return L;
+}
+
 /* ---------------- Jaimini chara karakas ---------------- */
 function charaKarakas(grahas) {     /* grahas: [{ body, lon (sidereal) }] */
   const K = ["Atmakaraka (self)", "Amatyakaraka (career)", "Bhratrikaraka (siblings)", "Matrikaraka (mother)", "Putrakaraka (children)", "Gnatikaraka (rivals)", "Darakaraka (partner)"];
@@ -216,6 +264,6 @@ function charaKarakas(grahas) {     /* grahas: [{ body, lon (sidereal) }] */
   return ["Chara karakas (7-karaka scheme, by degree within the sign): " + seven.map((g, i) => `${K[i]} ${g.body} ${g.deg.toFixed(2)}°`).join(" · ")];
 }
 
-const API = { behenian, starLongitudes, mansionLine, mansionWindows, mansionReport, manzilOf, MANZIL, zodiacalReleasing, zrLevel1, zrLevel2, profections, solarReturn, baziExtras, charaKarakas, ZR_YEARS };
+const API = { ashtakavarga, ashtakavargaTable, behenian, starLongitudes, mansionLine, mansionWindows, mansionReport, manzilOf, MANZIL, zodiacalReleasing, zrLevel1, zrLevel2, profections, solarReturn, baziExtras, charaKarakas, ZR_YEARS };
 if (IS_NODE) module.exports = API; else window.SeidanExtras = API;
 })();

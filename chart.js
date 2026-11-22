@@ -20,6 +20,8 @@
    unaffected; omit --asof for identical output to previous builds.
    Western also lists natal aspects (traditional per-planet orbs, applying/
    separating); Jyotish also prints a varga table (D1 D2 D3 D4 D7 D9 D10 D12 D30).
+   --av jhora|alt — which printing of the Moon/Venus ashtakavarga tables to use
+   (default jhora, the Jagannatha Hora set; see the extras.js header).
    --mansion N — when the Moon is in Arabic mansion N (tropical, 28 equal parts)
    over the next --days (default 60) from today or --asof; times in UT unless
    --tz OFFSET (hours, e.g. --tz -5) is given. Always prints when given.
@@ -463,6 +465,9 @@ if (want("jyotish")) {
       console.log(`  ${g.body.padEnd(18)} ${VARGA_ORDER.map(k => RASI3[v[k]].padEnd(4)).join(" ")}${v.D1 === v.D9 ? " vargottama" : ""}`); }
   }
   for (const line of X.charaKarakas(gs)) console.log(line);
+  { const avI = process.argv.indexOf("--av"), avV = avI > -1 ? process.argv[avI + 1] : "jhora";
+    if (!["jhora", "alt"].includes(avV)) { console.error("--av takes jhora (default) or alt"); process.exit(1); }
+    for (const line of X.ashtakavarga(gs, avV)) console.log(line); }
   /* panchanga + sadhe sati */
   {
     const TITHI = ["Pratipada","Dvitiya","Tritiya","Chaturthi","Panchami","Shashthi","Saptami","Ashtami","Navami","Dashami","Ekadashi","Dvadashi","Trayodashi","Chaturdashi"];

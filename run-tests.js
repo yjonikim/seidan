@@ -175,3 +175,17 @@ console.log("solar-time tests passed.");
   ok("Mansion finder: Moon sits on the boundaries at entry and exit", Math.abs(moon(w[0].enter) - 360 / 28 * 2) < 0.01 && Math.abs(moon(w[0].exit) - 360 / 28 * 3) < 0.01);
   console.log(`star and mansion tests passed (${pass} assertions in all).`);
 }
+
+// --- ashtakavarga vs PyJHora 5.0.5 (appended v19). fixtures-pyjhora.json holds the reference output. ---
+{
+  const X = require("./extras.js"), F = require("./fixtures-pyjhora.json"), P = ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn"];
+  for (const who of ["joni", "control"]) {
+    const sg = F[who].signs, signs = { Lagna: sg[0], Sun: sg[1], Moon: sg[2], Mars: sg[3], Mercury: sg[4], Jupiter: sg[5], Venus: sg[6], Saturn: sg[7] };
+    const a = X.ashtakavargaTable(signs, "jhora"), b = X.ashtakavargaTable(signs, "alt");
+    ok(`Ashtakavarga ${who}: all 84 cells and the SAV row match the reference (Jagannatha Hora tables)`,
+       P.every((p, i) => a.bav[p].join() === F[who].bav[i].join()) && a.sav.join() === F[who].sav.join());
+    ok(`Ashtakavarga ${who}: all 84 cells match the reference with its variant switches off (alternate tables)`, P.every((p, i) => b.bav[p].join() === F[who].alt[i].join()));
+    ok(`Ashtakavarga ${who}: row totals 48/49/39/54/56/52/39 in both variants`, [a, b].every(t => P.map(p => t.bav[p].reduce((x, y) => x + y, 0)).join() === "48,49,39,54,56,52,39"));
+  }
+  console.log(`ashtakavarga tests passed (${pass} assertions in all).`);
+}

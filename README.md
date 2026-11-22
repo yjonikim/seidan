@@ -29,7 +29,7 @@ Engines, vendored as flat files (no CDN calls at runtime):
 | BaZi: pillars, ten gods, hidden stems, luck pillars, 神煞 | yes | yes |
 | BaZi: na yin, life stages, 胎元 / 命宮 / 身宮, relations inside the chart and with the current luck pillar and year | yes | yes |
 | ZWDS board | yes | yes (`--full`, `--fly DATE`) |
-| Jyotish: rasi + navamsa charts, nakshatras, vargas, chara karakas, yogas, vimshottari, panchanga, Sadhe Sati | yes | yes (no drawn charts) |
+| Jyotish: rasi + navamsa charts, nakshatras, vargas, chara karakas, ashtakavarga, yogas, vimshottari, panchanga, Sadhe Sati | yes | yes (no drawn charts) |
 | As-of date for every "today" layer | date field by the Calculate button | `--asof DATE` |
 | EN glosses for hanzi | toggle | hanzi only |
 | Synastry | Synastry tab | `synastry.js` |
@@ -79,6 +79,10 @@ CLI and the site, so those layers print the same text in both places.
   almanac's day mansion, not a Moon position.
 - Jyotish: Lahiri ayanamsa, mean-node Rahu, whole-sign houses, 365.25-day
   dasha year. Vargas follow Parashara (D2, D3, D4, D7, D9, D10, D12, D30).
+- Ashtakavarga: two printings of the Moon and Venus tables exist. The default
+  is the set Jagannatha Hora uses; `--av alt` (or the picker on the site)
+  gives the other. Both match PyJHora 5.0.5 cell for cell on the two fixture
+  charts; the reference output is stored in `fixtures-pyjhora.json`.
 - Zodiacal releasing: Valens' minor years, 360-day years, loosing of the bond
   after a full Level 2 circuit. Details in the `extras.js` header.
 - ZWDS: iztro's default school. BaZi 天乙貴人: 甲戊庚 → 丑未.
@@ -87,7 +91,7 @@ CLI and the site, so those layers print the same text in both places.
 
 ```
 npm install lunar-javascript iztro astronomy-engine
-node run-tests.js            # 60 assertions: two fixture charts, CLI output, extras, stars, mansions
+node run-tests.js            # 66 assertions: two fixture charts, CLI output, extras, stars, mansions, ashtakavarga
 node synastry.js --selftest  # 21 checks
 node tree.js --selftest      # 10 checks
 node blind.js --selftest     # 7 checks
@@ -95,8 +99,8 @@ node blind.js --selftest     # 7 checks
 
 ## Not built yet
 
-- Shadbala and ashtakavarga (held until they can be checked against a
-  reference implementation)
+- Shadbala (held until it matches a reference implementation component by
+  component)
 - The rest of the sixteen vargas (D16, D20, D24, D27, D40, D45, D60)
 - Adjective-star toggle for the ZWDS board on the site
 
