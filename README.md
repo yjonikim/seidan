@@ -25,6 +25,7 @@ Engines, vendored as flat files (no CDN calls at runtime):
 | Firdaria, secondary progressions, solar arc | yes | yes |
 | Zodiacal releasing (L1 + L2, loosing of the bond), profection table | yes | yes |
 | Solar return | for the as-of year | `--return YEAR` |
+| Arabic lunar mansion of the Moon, and a finder for when the Moon is next in mansion N | yes (local time) | `--mansion N [--days D] [--tz OFFSET]` |
 | BaZi: pillars, ten gods, hidden stems, luck pillars, 神煞 | yes | yes |
 | BaZi: na yin, life stages, 胎元 / 命宮 / 身宮, relations inside the chart and with the current luck pillar and year | yes | yes |
 | ZWDS board | yes | yes (`--full`, `--fly DATE`) |
@@ -68,8 +69,14 @@ CLI and the site, so those layers print the same text in both places.
 - Solar phase: cazimi within 17′, combust within 8°30′, under the beams
   within 15°. Hermetic lots follow Paulus and reverse by night. Planetary
   hours are unequal hours from true sunrise and sunset at the birthplace.
-- Behenian stars: J2000 ecliptic longitudes precessed at 50.29″ a year,
-  conjunction by longitude only, 1° orb.
+- Behenian stars: computed for the chart's date from catalogue right
+  ascension, declination and proper motion, through the same pipeline as the
+  planets. Conjunction by longitude only, 1° orb. Checked against published
+  longitudes for 2000, 2020 and 2050.
+- Lunar mansions, each in its own system: Arabic manazil are 28 equal parts of
+  the tropical zodiac from 0° Aries (mansion 3 = 25°43′ Aries to 8°34′
+  Taurus); nakshatras are sidereal; the Chinese 宿 shown with BaZi is the
+  almanac's day mansion, not a Moon position.
 - Jyotish: Lahiri ayanamsa, mean-node Rahu, whole-sign houses, 365.25-day
   dasha year. Vargas follow Parashara (D2, D3, D4, D7, D9, D10, D12, D30).
 - Zodiacal releasing: Valens' minor years, 360-day years, loosing of the bond
@@ -80,7 +87,7 @@ CLI and the site, so those layers print the same text in both places.
 
 ```
 npm install lunar-javascript iztro astronomy-engine
-node run-tests.js            # 53 assertions: two fixture charts, CLI output, extras
+node run-tests.js            # 60 assertions: two fixture charts, CLI output, extras, stars, mansions
 node synastry.js --selftest  # 21 checks
 node tree.js --selftest      # 10 checks
 node blind.js --selftest     # 7 checks

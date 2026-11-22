@@ -153,3 +153,25 @@ console.log("solar-time tests passed.");
   ok("Chara karakas: Atmakaraka Mars, Darakaraka Sun", /Atmakaraka \(self\) Mars .*Darakaraka \(partner\) Sun/.test(o));
   console.log(`extras tests passed (${pass} assertions in all).`);
 }
+
+// --- stars from catalogue + lunar mansions (appended v18) ---
+{
+  const X = require("./extras.js");
+  const at = (y) => Object.fromEntries(X.starLongitudes(A, new Date(Date.UTC(y, 0, 1, 12))));
+  const dm = (L) => [Math.floor(L / 30), (L % 30)];
+  const near = (L, sign, deg, min) => dm(L)[0] === sign && Math.abs(dm(L)[1] - (deg + min / 60)) < 2.5 / 60;
+  const s2000 = at(2000), s2020 = at(2020), s2050 = at(2050);
+  ok("Stars 2000 match the standard epoch-2000 table (Algol 26♉10, Regulus 29♌50, Spica 23♎50, Antares 9♐46)",
+     near(s2000.Algol, 1, 26, 10) && near(s2000.Regulus, 4, 29, 50) && near(s2000.Spica, 6, 23, 50) && near(s2000.Antares, 8, 9, 46));
+  ok("Stars 2020 match published 2020 longitudes (Algol 26♉26, Spica 24♎06, Arcturus 24♎30)",
+     near(s2020.Algol, 1, 26, 26) && near(s2020.Spica, 6, 24, 6) && near(s2020.Arcturus, 6, 24, 30));
+  ok("Stars 2050 match published 2050 longitudes (Spica 24♎33, Arcturus 24♎56)", near(s2050.Spica, 6, 24, 33) && near(s2050.Arcturus, 6, 24, 56));
+  ok("Regulus crossed into Virgo in late 2011", at(2011).Regulus < 150 && at(2012.5).Regulus > 150);
+  ok("Mansion 3 runs 25°43′ Aries to 8°34′ Taurus", X.manzilOf(25.72) === 3 && X.manzilOf(25.70) === 2 && X.manzilOf(38.57) === 3 && X.manzilOf(38.58) === 4);
+  const w = X.mansionWindows(A, { n: 3, from: new Date(Date.UTC(2026, 10, 22)), days: 60 });
+  const moon = (d) => A.EclipticGeoMoon(d).lon;
+  ok("Mansion finder: windows recur every ~27.3 days and last about a day", w.length >= 2 && w.every(x => !x.enter || !x.exit || (x.exit - x.enter) / 36e5 > 18 && (x.exit - x.enter) / 36e5 < 30) &&
+     Math.abs((w[1].enter - w[0].enter) / 864e5 - 27.3) < 1);
+  ok("Mansion finder: Moon sits on the boundaries at entry and exit", Math.abs(moon(w[0].enter) - 360 / 28 * 2) < 0.01 && Math.abs(moon(w[0].exit) - 360 / 28 * 3) < 0.01);
+  console.log(`star and mansion tests passed (${pass} assertions in all).`);
+}

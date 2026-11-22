@@ -2,7 +2,7 @@
 /* seidan chart.js — CLI twin of the deployed site. Same engines, same math.
    Usage:
      npm install lunar-javascript iztro astronomy-engine
-     node chart.js DATE TIME CLOCK_UTC_OFFSET STD_OFFSET LAT LON GENDER [--std-time] [--full] [--fly YYYY-MM-DD] [--transit YYYY-MM-DD] [--only LIST] [--asof YYYY-MM-DD] [--return YEAR]
+     node chart.js DATE TIME CLOCK_UTC_OFFSET STD_OFFSET LAT LON GENDER [--std-time] [--full] [--fly YYYY-MM-DD] [--transit YYYY-MM-DD] [--only LIST] [--asof YYYY-MM-DD] [--return YEAR] [--mansion N [--days D] [--tz OFFSET]]
    Example (Joni):
      node chart.js 1988-08-18 20:44 +10 +9 37.566 126.978 female
    Notes: CLOCK offset includes DST if in effect; STD is the zone's normal
@@ -20,6 +20,9 @@
    unaffected; omit --asof for identical output to previous builds.
    Western also lists natal aspects (traditional per-planet orbs, applying/
    separating); Jyotish also prints a varga table (D1 D2 D3 D4 D7 D9 D10 D12 D30).
+   --mansion N — when the Moon is in Arabic mansion N (tropical, 28 equal parts)
+   over the next --days (default 60) from today or --asof; times in UT unless
+   --tz OFFSET (hours, e.g. --tz -5) is given. Always prints when given.
    --return YEAR — solar return for that year, cast for the birthplace; always
    prints when given. extras.js (shared with the site) supplies zodiacal
    releasing and the profection table (timing section), the BaZi extras, the
@@ -42,6 +45,10 @@ const flyDate = flyIdx > -1 ? process.argv[flyIdx + 1] : null;
 const srIdx = process.argv.indexOf("--return");
 const returnYear = srIdx > -1 ? parseInt(process.argv[srIdx + 1], 10) : null;
 if (srIdx > -1 && !(returnYear > 1000)) { console.error("--return needs a year, e.g. --return 2027"); process.exit(1); }
+const mnIdx = process.argv.indexOf("--mansion");
+const mansionN = mnIdx > -1 ? parseInt(process.argv[mnIdx + 1], 10) : null;
+if (mnIdx > -1 && !(mansionN >= 1 && mansionN <= 28)) { console.error("--mansion needs a number 1-28, e.g. --mansion 3"); process.exit(1); }
+const optNum = (f, dflt) => { const i = process.argv.indexOf(f); return i > -1 ? parseFloat(process.argv[i + 1]) : dflt; };
 const trIdx = process.argv.indexOf("--transit");
 const transitDate = trIdx > -1 ? process.argv[trIdx + 1] : null;
 
@@ -190,11 +197,8 @@ function natalAspects(rows, asc, mc) {
 /* ---- traditional extras: solar phase, Hermetic lots, planetary day/hour, prenatal syzygy, Behenian stars ----
    Solar phase: cazimi within 17′ of the Sun, combust within 8°30′, under the beams within 15°;
    oriental = rises before the Sun. Lots follow Paulus (reversed by night). Planetary hours are
-   unequal hours from true sunrise/sunset at the birthplace. Stars: J2000 ecliptic longitudes
-   precessed at 50.29″/yr, conjunction by longitude only, 1° orb. Returns text lines. */
-const BEHENIAN = [["Algol", 56.17], ["Alcyone (Pleiades)", 60.00], ["Aldebaran", 69.78], ["Capella", 81.85], ["Sirius", 104.08],
-  ["Procyon", 115.78], ["Regulus", 149.83], ["Alkaid", 176.93], ["Algorab", 193.45], ["Spica", 203.83], ["Arcturus", 204.23],
-  ["Alphecca", 222.30], ["Antares", 249.77], ["Vega", 285.32], ["Deneb Algedi", 323.55]];
+   unequal hours from true sunrise/sunset at the birthplace. Stars and the Arabic mansion come
+   from extras.js (stars computed for the date, 1° orb). Returns text lines. */
 function tradExtras(A, o) {
   const L = [], n360 = (x) => ((x % 360) + 360) % 360, sepOf = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
   const lon = {}; for (const r of o.rows) lon[r.body] = r.lon;
@@ -233,12 +237,9 @@ function tradExtras(A, o) {
     const ml = A.EclipticGeoMoon(syz).lon;
     L.push(`Prenatal syzygy: ${isNew ? "New Moon (conjunction)" : "Full Moon (opposition)"} with the Moon at ${o.fmt(ml)}, ${((o.ut - syz) / 864e5).toFixed(1)} days before birth`);
   } catch (e) { /* search failed: omit the line */ }
-  /* Behenian stars */
-  const yrs = (o.ut.getTime() - Date.UTC(2000, 0, 1, 12)) / (365.25 * 864e5), hits = [];
-  const pts = o.rows.map(r => [r.body, r.lon]).concat([["Asc", o.asc], ["MC", o.mc]]);
-  for (const [star, l0] of BEHENIAN) { const sl = n360(l0 + yrs * 50.29 / 3600);
-    for (const [b, bl] of pts) { const d = sepOf(sl, bl); if (d <= 1) hits.push(`${b} with ${star} (${o.fmt(sl)}, orb ${dmo(d)})`); } }
-  L.push("Behenian stars within 1\u00B0: " + (hits.length ? hits.join("; ") : "none"));
+  /* Behenian stars and the Arabic mansion of the Moon (extras.js) */
+  L.push(...X.behenian(A, { ut: o.ut, pts: o.rows.map(r => [r.body, r.lon]).concat([["Asc", o.asc], ["MC", o.mc]]) }));
+  L.push(...X.mansionLine(lon.Moon));
   return L;
 }
 
@@ -736,6 +737,12 @@ if (want("timing")) {
   const lotS = ((isDay ? asc + sunLon - moonLon : asc + moonLon - sunLon) % 360 + 360) % 360;
   for (const line of X.zodiacalReleasing({ fortune: lotF, spirit: lotS, ut, asof: asofD })) console.log(line);
   for (const line of X.profections({ asc, birth: date, asof: asofD })) console.log(line);
+}
+
+/* ---- Arabic lunar mansion finder (--mansion N [--days D] [--tz OFFSET]) ---- */
+if (mansionN) {
+  console.log("");
+  for (const line of X.mansionReport(A, { n: mansionN, from: asofDate ? new Date(asofDate + "T00:00:00Z") : new Date(), days: optNum("--days", 60), tzHours: optNum("--tz", 0) })) console.log(line);
 }
 
 /* ---- solar return (--return YEAR) ---- */

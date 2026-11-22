@@ -101,6 +101,7 @@ function baziExtras(lib, o) {       /* lib: { Solar, Lunar, LunarUtil }; o: { ct
   L.push(`Na yin 納音: year ${ec.getYearNaYin()} · month ${ec.getMonthNaYin()} · day ${ec.getDayNaYin()} · hour ${ec.getTimeNaYin()}`);
   const st = [ec.getYearDiShi(), ec.getMonthDiShi(), ec.getDayDiShi(), ec.getTimeDiShi()];
   L.push("Day master's life stage in each branch: " + st.map((s, i) => `${P[i][0]} ${s} ${STAGE[s] || ""}`.trim()).join(" · "));
+  try { L.push(`Chinese day mansion \u5BBF (almanac cycle, not a Moon position): ${lunar.getXiu()} \u00B7 animal ${lunar.getAnimal()} \u00B7 ${lunar.getXiuLuck()}`); } catch (e) { /* older library build */ }
   L.push(`Conception pillar 胎元 ${ec.getTaiYuan()} · Life palace 命宮 ${ec.getMingGong()} · Body palace 身宮 ${ec.getShenGong()}`);
   if (o.rel) {
     const pairRel = (x, y) => [o.rel.stemRel(x[0], y[0]), ...o.rel.branchRel(x[1], y[1])].filter(Boolean);
@@ -130,6 +131,83 @@ function baziExtras(lib, o) {       /* lib: { Solar, Lunar, LunarUtil }; o: { ct
   return L;
 }
 
+/* ---------------- Behenian stars, computed for the date ----------------
+   Catalogue place (ICRS/J2000 right ascension and declination, Hipparcos) plus proper motion,
+   handed to astronomy-engine as a user-defined star and converted to the true ecliptic of date
+   — the same pipeline the planets go through, so precession is exact, not a linear rate.
+   Columns: name, RA hours, Dec degrees, proper motion in RA (mas/yr, already times cos Dec),
+   proper motion in Dec (mas/yr). Conjunction by longitude only (latitude ignored), as is usual. */
+const BEHENIAN = [
+  ["Algol",              3 +  8 / 60 + 10.13 / 3600,   40 + 57 / 60 + 20.3 / 3600,     2.99,    -1.66],
+  ["Alcyone (Pleiades)", 3 + 47 / 60 + 29.08 / 3600,   24 +  6 / 60 + 18.5 / 3600,    19.34,   -43.67],
+  ["Aldebaran",          4 + 35 / 60 + 55.24 / 3600,   16 + 30 / 60 + 33.5 / 3600,    63.45,  -188.94],
+  ["Capella",            5 + 16 / 60 + 41.36 / 3600,   45 + 59 / 60 + 52.8 / 3600,    75.25,  -426.89],
+  ["Sirius",             6 + 45 / 60 +  8.92 / 3600, -(16 + 42 / 60 + 58.0 / 3600), -546.01, -1223.07],
+  ["Procyon",            7 + 39 / 60 + 18.12 / 3600,    5 + 13 / 60 + 30.0 / 3600,  -714.59, -1036.80],
+  ["Regulus",           10 +  8 / 60 + 22.31 / 3600,   11 + 58 / 60 +  2.0 / 3600,  -248.73,     5.59],
+  ["Alkaid",            13 + 47 / 60 + 32.44 / 3600,   49 + 18 / 60 + 48.0 / 3600,  -121.17,   -14.91],
+  ["Algorab",           12 + 29 / 60 + 51.86 / 3600, -(16 + 30 / 60 + 55.6 / 3600), -210.49,  -138.74],
+  ["Spica",             13 + 25 / 60 + 11.58 / 3600, -(11 +  9 / 60 + 40.8 / 3600),  -42.35,   -30.67],
+  ["Arcturus",          14 + 15 / 60 + 39.67 / 3600,   19 + 10 / 60 + 56.7 / 3600, -1093.39, -2000.06],
+  ["Alphecca",          15 + 34 / 60 + 41.27 / 3600,   26 + 42 / 60 + 52.9 / 3600,   120.27,   -89.58],
+  ["Antares",           16 + 29 / 60 + 24.46 / 3600, -(26 + 25 / 60 + 55.2 / 3600),  -12.11,   -23.30],
+  ["Vega",              18 + 36 / 60 + 56.34 / 3600,   38 + 47 / 60 +  1.3 / 3600,   200.94,   286.23],
+  ["Deneb Algedi",      21 + 47 / 60 +  2.44 / 3600, -(16 +  7 / 60 + 38.2 / 3600),  263.26,  -296.23],
+];
+function starLongitudes(A, t) {     /* -> [[name, tropical longitude of date]] */
+  const yrs = (t.getTime() - Date.UTC(2000, 0, 1, 12)) / (365.25 * DAY), out = [];
+  for (const [name, ra0, dec0, pmRa, pmDec] of BEHENIAN) {
+    const dec = dec0 + pmDec * yrs / 3.6e6;
+    const ra = ra0 + (pmRa * yrs / 3.6e6) / Math.cos(dec0 * D2R) / 15;
+    A.DefineStar(A.Body.Star1, ra, dec, 1000);                       /* distance set far: no parallax wanted */
+    out.push([name, A.Ecliptic(A.GeoVector(A.Body.Star1, t, true)).elon]);
+  }
+  return out;
+}
+function behenian(A, o) {           /* o: { ut, pts: [[label, lon]], orb } */
+  const hits = [], sepOf = (a, b) => Math.abs(((a - b + 540) % 360) - 180), orb = o.orb || 1;
+  const dmo = (x) => `${Math.floor(x)}°${String(Math.floor((x % 1) * 60 + 1e-9)).padStart(2, "0")}′`;
+  for (const [star, sl] of starLongitudes(A, o.ut))
+    for (const [b, bl] of o.pts) { const d = sepOf(sl, bl); if (d <= orb) hits.push(`${b} with ${star} (${fmt(sl)}, orb ${dmo(d)})`); }
+  return [`Behenian stars within ${orb}° (positions computed for the birth date): ` + (hits.length ? hits.join("; ") : "none")];
+}
+
+/* ---------------- lunar mansions, each system on its own terms ----------------
+   Arabic manazil: 28 equal parts of 12°51′26″ measured on the TROPICAL zodiac from 0° Aries
+   (the form used in the Picatrix tradition and in electional practice; mansion 3 runs
+   25°43′ Aries to 8°34′ Taurus). Nakshatras are sidereal and live in the Jyotish section.
+   The Chinese 宿 here is the calendar's day mansion (the 28 xiu cycle through the days, as in
+   the almanac), printed with the BaZi block — it is not a Moon-position reading. */
+const MANZIL = ["Al Sharatain","Al Butain","Al Thurayya","Al Dabaran","Al Haq'a","Al Han'a","Al Dhira","Al Nathra","Al Tarf","Al Jabha",
+  "Al Zubra","Al Sarfa","Al Awwa","Al Simak","Al Ghafr","Al Zubana","Al Iklil","Al Qalb","Al Shaula","Al Na'am","Al Balda",
+  "Sa'd al-Dhabih","Sa'd Bula","Sa'd al-Su'ud","Sa'd al-Akhbiya","Al Fargh al-Mukdim","Al Fargh al-Thani","Batn al-Hut"];
+const MW = 360 / 28;
+const manzilOf = (L) => Math.floor(n360(L) / MW) + 1;
+const manzilLabel = (n) => `${n} ${MANZIL[n - 1]} (${fmt((n - 1) * MW)} – ${fmt(n360(n * MW - 1e-9))})`;
+function mansionLine(moonLon) { return [`Arabic lunar mansion (tropical, 28 equal parts from 0° Aries): Moon in mansion ${manzilLabel(manzilOf(moonLon))}`]; }
+function mansionWindows(A, o) {     /* o: { n, from:Date, days } -> [{ enter:Date, exit:Date }] ; first window may already be open */
+  const lonAt = (ms) => A.EclipticGeoMoon(new Date(ms)).lon, inside = (ms) => manzilOf(lonAt(ms)) === o.n;
+  const edge = (a, b) => { const va = inside(a); while (b - a > 30e3) { const m = (a + b) / 2; if (inside(m) === va) a = m; else b = m; } return new Date(b); };
+  const out = [], H = 3600e3, t0 = o.from.getTime(), t1 = t0 + (o.days || 60) * DAY;
+  let cur = inside(t0) ? { enter: null } : null;
+  for (let t = t0; t < t1; t += H) {
+    const a = inside(t), b = inside(t + H);
+    if (!a && b) cur = { enter: edge(t, t + H) };
+    if (a && !b && cur) { cur.exit = edge(t, t + H); out.push(cur); cur = null; }
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+function mansionReport(A, o) {      /* o: { n, from, days, tzHours, tzLabel } */
+  const off = (o.tzHours || 0) * 3600e3, lab = o.tzLabel || (o.tzHours ? `UTC${o.tzHours > 0 ? "+" : ""}${o.tzHours}` : "UT");
+  const f = (d) => d ? new Date(d.getTime() + off).toISOString().slice(0, 16).replace("T", " ") : "already in it";
+  const now = A.EclipticGeoMoon(o.from).lon;
+  const L = [`Moon in Arabic mansion ${manzilLabel(o.n)} — next ${o.days || 60} days from ${ymd(o.from.getTime())}, times in ${lab}:`];
+  for (const w of mansionWindows(A, o)) L.push(`  ${f(w.enter)}  →  ${w.exit ? f(w.exit) : "(past the window)"}`);
+  L.push(`  (at the start date the Moon is at ${fmt(now)}, mansion ${manzilOf(now)} ${MANZIL[manzilOf(now) - 1]})`);
+  return L;
+}
+
 /* ---------------- Jaimini chara karakas ---------------- */
 function charaKarakas(grahas) {     /* grahas: [{ body, lon (sidereal) }] */
   const K = ["Atmakaraka (self)", "Amatyakaraka (career)", "Bhratrikaraka (siblings)", "Matrikaraka (mother)", "Putrakaraka (children)", "Gnatikaraka (rivals)", "Darakaraka (partner)"];
@@ -138,6 +216,6 @@ function charaKarakas(grahas) {     /* grahas: [{ body, lon (sidereal) }] */
   return ["Chara karakas (7-karaka scheme, by degree within the sign): " + seven.map((g, i) => `${K[i]} ${g.body} ${g.deg.toFixed(2)}°`).join(" · ")];
 }
 
-const API = { zodiacalReleasing, zrLevel1, zrLevel2, profections, solarReturn, baziExtras, charaKarakas, ZR_YEARS };
+const API = { behenian, starLongitudes, mansionLine, mansionWindows, mansionReport, manzilOf, MANZIL, zodiacalReleasing, zrLevel1, zrLevel2, profections, solarReturn, baziExtras, charaKarakas, ZR_YEARS };
 if (IS_NODE) module.exports = API; else window.SeidanExtras = API;
 })();

@@ -305,11 +305,8 @@
   /* ---- traditional extras: solar phase, Hermetic lots, planetary day/hour, prenatal syzygy, Behenian stars ----
      Solar phase: cazimi within 17′ of the Sun, combust within 8°30′, under the beams within 15°;
      oriental = rises before the Sun. Lots follow Paulus (reversed by night). Planetary hours are
-     unequal hours from true sunrise/sunset at the birthplace. Stars: J2000 ecliptic longitudes
-     precessed at 50.29″/yr, conjunction by longitude only, 1° orb. Returns text lines. */
-  const BEHENIAN = [["Algol", 56.17], ["Alcyone (Pleiades)", 60.00], ["Aldebaran", 69.78], ["Capella", 81.85], ["Sirius", 104.08],
-    ["Procyon", 115.78], ["Regulus", 149.83], ["Alkaid", 176.93], ["Algorab", 193.45], ["Spica", 203.83], ["Arcturus", 204.23],
-    ["Alphecca", 222.30], ["Antares", 249.77], ["Vega", 285.32], ["Deneb Algedi", 323.55]];
+     unequal hours from true sunrise/sunset at the birthplace. Stars and the Arabic mansion come
+     from extras.js (stars computed for the date, 1° orb). Returns text lines. */
   function tradExtras(A, o) {
     const L = [], n360 = (x) => ((x % 360) + 360) % 360, sepOf = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
     const lon = {}; for (const r of o.rows) lon[r.body] = r.lon;
@@ -348,12 +345,9 @@
       const ml = A.EclipticGeoMoon(syz).lon;
       L.push(`Prenatal syzygy: ${isNew ? "New Moon (conjunction)" : "Full Moon (opposition)"} with the Moon at ${o.fmt(ml)}, ${((o.ut - syz) / 864e5).toFixed(1)} days before birth`);
     } catch (e) { /* search failed: omit the line */ }
-    /* Behenian stars */
-    const yrs = (o.ut.getTime() - Date.UTC(2000, 0, 1, 12)) / (365.25 * 864e5), hits = [];
-    const pts = o.rows.map(r => [r.body, r.lon]).concat([["Asc", o.asc], ["MC", o.mc]]);
-    for (const [star, l0] of BEHENIAN) { const sl = n360(l0 + yrs * 50.29 / 3600);
-      for (const [b, bl] of pts) { const d = sepOf(sl, bl); if (d <= 1) hits.push(`${b} with ${star} (${o.fmt(sl)}, orb ${dmo(d)})`); } }
-    L.push("Behenian stars within 1\u00B0: " + (hits.length ? hits.join("; ") : "none"));
+    /* Behenian stars and the Arabic mansion of the Moon (extras.js) */
+    L.push(...window.SeidanExtras.behenian(A, { ut: o.ut, pts: o.rows.map(r => [r.body, r.lon]).concat([["Asc", o.asc], ["MC", o.mc]]) }));
+    L.push(...window.SeidanExtras.mansionLine(lon.Moon));
     return L;
   }
   function lotsAndProfection(w, birthDateStr) {
@@ -1145,6 +1139,21 @@
   });
   applyGloss();
   $("calcBtn").addEventListener("click", calculate);
+  /* ---------- Arabic mansion finder ---------- */
+  function renderMansion() {
+    try {
+      const E = window.SeidanExtras, n = parseInt($("mansionSel").value, 10) || 3, tz = -new Date().getTimezoneOffset() / 60;
+      const v = $("asofDate").value, from = v ? new Date(v + "T00:00:00") : new Date();
+      $("mansionOut").textContent = E.mansionReport(window.Astronomy, { n, from, days: 60, tzHours: tz, tzLabel: "your local time" }).join("\n");
+    } catch (err) { $("mansionOut").textContent = ""; }
+  }
+  (function () {
+    const sel = $("mansionSel"), E = window.SeidanExtras; if (!E) return;
+    E.MANZIL.forEach((nm, i) => { const o = document.createElement("option"); o.value = i + 1; o.textContent = `${i + 1} \u00B7 ${nm}`; sel.appendChild(o); });
+    sel.value = localStorage.getItem("calculador.mansion") || "3";
+    sel.addEventListener("change", () => { localStorage.setItem("calculador.mansion", sel.value); renderMansion(); });
+  })();
+  $("asofDate").addEventListener("change", renderMansion);
   $("asofDate").addEventListener("change", calculate);
   $("zwDetailBtn").addEventListener("click", () => {
     zwDetail = !zwDetail; localStorage.setItem("calculador.zwdetail", zwDetail ? "on" : "off"); calculate();
@@ -1175,7 +1184,7 @@
       showError(""); $("errbox").textContent = `Imported ${Object.keys(incoming).length} chart(s).`; $("errbox").style.display = "block";
     } catch (err) { showError("Import failed: " + err.message); }
   });
-  $("asofClear").addEventListener("click", () => { $("asofDate").value = ""; calculate(); });
+  $("asofClear").addEventListener("click", () => { $("asofDate").value = ""; calculate(); renderMansion(); });
   $("saveBtn").addEventListener("click", () => {
     const p = readForm();
     if (!p.name) { showError("Give the chart a name to save it."); return; }
@@ -1398,5 +1407,5 @@
   refreshProfileList();
   const first = getProfiles()[$("profileSel").value];
   if (first) { fillForm(first); calculate(); }
-  renderBlindPick(); renderBlindState(); renderSynPick();
+  renderBlindPick(); renderBlindState(); renderSynPick(); renderMansion();
 })();
