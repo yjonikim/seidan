@@ -63,3 +63,41 @@ Use `-` for an unknown birth time. `--line` prints a one-line summary for
 looping over a roster; `--selftest` replays the control. Hypothesis v1, built
 from a single case: a sorting aid, not a validated score. Rules are in the
 file header.
+
+## synastry.js — two charts against each other
+
+`node synastry.js DATE TIME|- CLOCK_OFF STD_OFF LAT LON male|female --name NAME [--only west,bazi,zwds,jyotish]`
+
+Reads one person against Joni's chart (override with `--self "..."` and
+`--selfname`). Where tree.js is a scored screen for one question, this is the
+neutral listing: Western aspects with reception, house overlays and antiscia;
+BaZi pillar-to-pillar relations, element gaps and the stars each chart assigns
+to the other; ZWDS birth-year-enters-the-chart both ways; Jyotish ashtakoota
+(36-point Moon matching) and Mangal dosha. Nothing is weighted except the
+ashtakoota, which is a traditional points system. Use `-` for an unknown
+birth time. `--selftest` runs 21 checks, including a published ashtakoota
+example reproduced koota for koota. Conventions are in the file header.
+
+## Blind test — chart-matching without knowing who is who
+
+On the site: the **Blind test** tab. Tick three or more saved charts and press
+*Build blind packet*. The page shuffles them, strips names and birth data,
+and produces a text packet to paste to a reader. The answer key stays in that
+browser. When the reader answers, pick their answers from the dropdowns and
+press *Score and reveal key* for the hit count and the chance of doing that
+well by luck.
+
+The packet carries a commitment (a SHA-256 hash of the sealed key), so the
+key shown at the end can be proven to be the one fixed at the start:
+
+```
+node blind.js verify "seidan-blind|A=...|salt=..." COMMITMENT
+node blind.js score  "seidan-blind|A=...|salt=..." "A=Name,B=Name,C=Name"
+node blind.js odds 5
+node blind.js pack roster.json --out DIR     # same thing from the terminal
+```
+
+Two limits, both in the blind.js header: one test is one data point (3 of 3
+happens by luck one time in six), and a chart's positions encode its birth
+date, so the packet only blinds a reader who holds no birth data for the
+people in it.

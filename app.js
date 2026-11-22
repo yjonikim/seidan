@@ -1058,6 +1058,127 @@
     img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(raw);
   });
 
+  /* ---------- blind test (Vernon Clark style chart matching) ----------
+     Shuffles chosen saved charts, strips names and birth data, and builds a
+     text packet for a reader. The key stays in localStorage until scoring.
+     Commitment = SHA-256 of the reveal line, printed in the packet, so the
+     key can be shown afterwards and proven unchanged (node blind.js verify). */
+  const BLIND = "calculador.blind.v1";
+  const getBlind = () => { try { return JSON.parse(localStorage.getItem(BLIND)); } catch { return null; } };
+  const cleanName = (n) => String(n).replace(/[|=,]/g, " ").trim();
+  function blindChartText(p0) {
+    const p = Object.assign({}, p0, { solartime: p0.solartime !== false });
+    const w = calcWestern(p), b = calcBazi(p), z = calcZwds(p), j = calcJyotish(p, w);
+    const isDay = ((w.rows[0].lon - w.asc + 360) % 360) >= 180, L = [];
+    L.push(`Sex: ${p.gender}`);
+    L.push("WESTERN (tropical; WS whole-sign house, P Placidus house)");
+    for (const r of w.rows) L.push(`  ${r.body.padEnd(8)} ${fmtLon(r.lon).padEnd(20)} WS${r.house} P${r.ph}${r.rx ? "  Rx" : ""}`);
+    L.push(`  Asc ${fmtLon(w.asc)} | MC ${fmtLon(w.mc)} | ${isDay ? "diurnal" : "nocturnal"}`);
+    L.push(`BAZI (hour from ${p.solartime ? "true solar" : "standard"} time)`);
+    L.push("  " + b.pillars.map(x => `${x.role.split(" ")[0]} ${x.gz}`).join(" | "));
+    L.push(`  Luck pillars, ${b.luckDir}: ` + b.luckArr.map(l => `${l.gz}@${l.age}`).join(" "));
+    L.push(`ZWDS (${z.fiveElementsClass})`);
+    for (const pal of z.palaces) {
+      const majors = pal.majorStars.map(s2 => s2.name + (s2.brightness ? "(" + s2.brightness + ")" : "") + (s2.mutagen ? "·" + s2.mutagen : "")).join(" ") || "—";
+      const minors = pal.minorStars.map(s2 => s2.name + (s2.mutagen ? "·" + s2.mutagen : "")).join(" ");
+      L.push(`  ${pal.heavenlyStem}${pal.earthlyBranch} ${pal.name} ${majors}${minors ? "  (" + minors + ")" : ""}`);
+    }
+    L.push("JYOTISH (Lahiri, mean node, whole sign)");
+    for (const g2 of j.grahas)
+      L.push(`  ${g2.body.padEnd(8)} ${fmtSid(g2.lon).padEnd(20)} H${String(g2.house).padEnd(3)} ${g2.nak.name} (${g2.nak.pada})${g2.rx && g2.body !== "Lagna" ? "  Rx" : ""}`);
+    return L.join("\n");
+  }
+  function blindOdds(n) {          /* matching problem: P(exactly k right), P(at least k right) under a random permutation */
+    const D = [1, 0]; for (let i = 2; i <= n; i++) D[i] = (i - 1) * (D[i - 1] + D[i - 2]);
+    const fact = (x) => { let f = 1; for (let i = 2; i <= x; i++) f *= i; return f; };
+    const exact = []; for (let k = 0; k <= n; k++) exact[k] = fact(n) / (fact(k) * fact(n - k)) * D[n - k] / fact(n);
+    const atLeast = exact.map((_, k) => exact.slice(k).reduce((x, y) => x + y, 0));
+    return { exact, atLeast };
+  }
+  async function sha256hex(str) {
+    if (!(window.crypto && crypto.subtle)) return "";
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(x => x.toString(16).padStart(2, "0")).join("");
+  }
+  function renderBlindPick() {
+    const box = $("blindPick"); box.innerHTML = "";
+    for (const n of Object.keys(getProfiles()).sort()) {
+      const lab = document.createElement("label"), cb = document.createElement("input");
+      cb.type = "checkbox"; cb.value = n;
+      lab.appendChild(cb); lab.appendChild(document.createTextNode(n)); box.appendChild(lab);
+    }
+  }
+  function renderBlindState() {
+    const st = getBlind(), out = $("blindScore");
+    $("blindPacket").value = st ? st.packet : "";
+    out.innerHTML = "";
+    if (!st) { $("blindMsg").textContent = ""; return; }
+    $("blindMsg").textContent = `Active test: ${st.labels.length} charts, built ${st.created}. Paste the packet to the reader, then enter their answers below.`;
+    const names = st.labels.map(l => st.key[l]).sort();
+    const h = document.createElement("p"); h.className = "blindverdict"; h.textContent = "Reader's answers"; out.appendChild(h);
+    for (const l of st.labels) {
+      const row = document.createElement("div"); row.className = "blindrow";
+      const sel = document.createElement("select"); sel.dataset.label = l;
+      sel.innerHTML = `<option value="">—</option>` + names.map(n => `<option>${n.replace(/</g, "&lt;")}</option>`).join("");
+      if (st.guess && st.guess[l]) sel.value = st.guess[l];
+      row.appendChild(document.createTextNode(`Chart ${l} is`)); row.appendChild(sel); out.appendChild(row);
+    }
+    const btn = document.createElement("button"); btn.textContent = "Score and reveal key"; btn.className = "seal";
+    const res = document.createElement("div"); res.id = "blindResult";
+    btn.addEventListener("click", () => {
+      const guess = {}; for (const sel of out.querySelectorAll("select")) guess[sel.dataset.label] = sel.value;
+      if (Object.values(guess).some(v => !v)) { res.textContent = "Every chart needs an answer before scoring."; return; }
+      const dup = new Set(Object.values(guess)).size !== st.labels.length;
+      st.guess = guess; localStorage.setItem(BLIND, JSON.stringify(st));
+      const n = st.labels.length, k = st.labels.filter(l => guess[l] === st.key[l]).length, od = blindOdds(n);
+      res.innerHTML = "";
+      const v = document.createElement("p"); v.className = "blindverdict";
+      v.textContent = `${k} of ${n} correct.`; res.appendChild(v);
+      const d = document.createElement("p"); d.className = "bazimeta";
+      d.textContent = `Chance of ${k} or more by random matching: ${(od.atLeast[k] * 100).toFixed(1)}% (expected by chance: 1 correct, whatever the number of charts).` +
+        (dup ? "\nThe answers reuse a name, so the chance figure (which assumes one name per chart) is only approximate." : "") +
+        "\n" + st.labels.map(l => `${l} = ${st.key[l]}${guess[l] === st.key[l] ? " ✓" : ` (answered ${guess[l]})`}`).join("\n") +
+        "\nReveal line (hashes to the commitment in the packet):";
+      res.appendChild(d);
+      const ta = document.createElement("textarea"); ta.id = "blindReveal"; ta.readOnly = true; ta.rows = 2; ta.value = st.reveal; res.appendChild(ta);
+    });
+    const br = document.createElement("div"); br.className = "btnrow"; br.appendChild(btn); out.appendChild(br); out.appendChild(res);
+  }
+  $("blindBuild").addEventListener("click", async () => {
+    const picked = Array.from($("blindPick").querySelectorAll("input:checked")).map(c => c.value);
+    if (picked.length < 3) { $("blindMsg").textContent = "Tick at least three saved charts (with two, a coin flip gets it right half the time)."; return; }
+    if (picked.length > 26) { $("blindMsg").textContent = "26 charts at most."; return; }
+    if (getBlind() && !confirm("Replace the active blind test? Its key will be lost.")) return;
+    const all = getProfiles(), order = picked.slice(), rnd = new Uint32Array(order.length);
+    crypto.getRandomValues(rnd);
+    for (let i = order.length - 1; i > 0; i--) { const j2 = rnd[i] % (i + 1); [order[i], order[j2]] = [order[j2], order[i]]; }
+    const labels = order.map((_, i) => String.fromCharCode(65 + i)), key = {}, blocks = [];
+    try {
+      order.forEach((n, i) => { key[labels[i]] = cleanName(n); blocks.push(`--- CHART ${labels[i]} ---\n${blindChartText(all[n])}`); });
+    } catch (err) { $("blindMsg").textContent = "Could not build: " + err.message; return; }
+    const saltB = new Uint8Array(8); crypto.getRandomValues(saltB);
+    const salt = Array.from(saltB).map(x => x.toString(16).padStart(2, "0")).join("");
+    const reveal = "seidan-blind|" + labels.map(l => `${l}=${key[l]}`).join("|") + `|salt=${salt}`;
+    const commit = await sha256hex(reveal), od = blindOdds(labels.length);
+    const head = [`SEIDAN BLIND PACKET — ${labels.length} charts, labels ${labels[0]}–${labels[labels.length - 1]}, order shuffled`,
+      `Commitment (SHA-256 of the sealed key): ${commit || "unavailable in this browser"}`,
+      `Chance baseline: 1 correct expected by luck; all ${labels.length} by luck ${(od.exact[labels.length] * 100).toFixed(2)}%.`];
+    if ($("blindNames").checked) head.push(`Names to match, alphabetical: ${labels.map(l => key[l]).sort().join(", ")}`);
+    head.push("Answer as A=Name, B=Name, ... using each name once.");
+    const st = { created: new Date().toISOString().slice(0, 10), labels, key, salt, reveal, commit, packet: head.join("\n") + "\n\n" + blocks.join("\n\n") };
+    localStorage.setItem(BLIND, JSON.stringify(st));
+    renderBlindState(); calculate();   /* calculate() restores the chart on screen after the batch run */
+  });
+  $("blindCopy").addEventListener("click", async () => {
+    const ta = $("blindPacket"); if (!ta.value) return;
+    try { await navigator.clipboard.writeText(ta.value); $("blindMsg").textContent = "Packet copied."; }
+    catch { ta.select(); $("blindMsg").textContent = "Select-all done; copy with your keyboard."; }
+  });
+  $("blindReset").addEventListener("click", () => {
+    if (getBlind() && confirm("Discard the active blind test and its key?")) { localStorage.removeItem(BLIND); renderBlindState(); }
+  });
+  document.querySelector('nav [data-tab="blind"]').addEventListener("click", renderBlindPick);
+
   /* first run: seed Joni's chart so it's zero-entry */
   if (!Object.keys(getProfiles()).length) {
     const joni = { name: "Joni", date: "1988-08-18", time: "20:44",
@@ -1067,4 +1188,5 @@
   refreshProfileList();
   const first = getProfiles()[$("profileSel").value];
   if (first) { fillForm(first); calculate(); }
+  renderBlindPick(); renderBlindState();
 })();

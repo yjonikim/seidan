@@ -62,6 +62,13 @@ nav button[aria-selected="true"]{
   border-bottom:2px solid var(--paper);margin-bottom:-2px;
 }
 section[role="tabpanel"]{padding:1.1rem 0}
+.blindpick{display:flex;flex-wrap:wrap;gap:.3rem 1.1rem;margin:.6rem 0}
+.blindpick label,.blindopt{display:flex;align-items:center;gap:.4rem;font-size:.92rem}
+.blindpick input,.blindopt input{width:auto;margin:0}
+#blindPacket,#blindReveal{width:100%;box-sizing:border-box;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.74rem;line-height:1.35;margin-top:.5rem;background:transparent;color:var(--ink);border:1px solid var(--rule);padding:.5rem}
+.blindrow{display:flex;align-items:center;gap:.6rem;margin:.25rem 0;font-size:.92rem}
+.blindrow select{width:auto;min-width:11rem}
+.blindverdict{font-weight:700;margin:.7rem 0 .2rem}
 table{border-collapse:collapse;width:100%;font-size:.92rem}
 th{font-weight:400;color:var(--ink-faded);text-align:left;font-size:.78rem;
    border-bottom:1px solid var(--ink);padding:.25rem .4rem}
@@ -126,6 +133,7 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
   .profilebar,fieldset,nav,.btnrow,footer,.errbox{display:none!important}
   section[role="tabpanel"]{display:block!important;page-break-inside:avoid}
   section[role="tabpanel"][hidden]{display:block!important}
+  #panel-blind{display:none!important}
   body{max-width:100%}
 }
 </style>
@@ -179,6 +187,7 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
   <button role="tab" aria-selected="false" data-tab="bazi">BaZi 四柱</button>
   <button role="tab" aria-selected="false" data-tab="zwds">ZWDS 紫微</button>
   <button role="tab" aria-selected="false" data-tab="jyotish">Jyotish ज्योतिष</button>
+  <button role="tab" aria-selected="false" data-tab="blind">Blind test</button>
 </nav>
 
 <section role="tabpanel" id="panel-western">
@@ -227,11 +236,25 @@ footer{margin-top:2rem;border-top:1px solid var(--rule);padding-top:.6rem;
   <p class="bazimeta" id="jyMeta"></p>
 </section>
 
+<section role="tabpanel" id="panel-blind" hidden>
+  <p class="bazimeta">Blind chart-matching (Vernon Clark style). Tick three or more saved charts. The page shuffles them, strips names and birth data, and builds a packet to paste to a reader. The answer key never leaves this browser until you score. A chart's positions still encode its birth date, so this only blinds a reader who has no birth data on file for these people.</p>
+  <div id="blindPick" class="blindpick"></div>
+  <label class="blindopt"><input type="checkbox" id="blindNames" checked> list the names (alphabetical) in the packet, so the reader matches charts to names</label>
+  <div class="btnrow">
+    <button id="blindBuild" class="seal">Build blind packet</button>
+    <button id="blindCopy">Copy packet</button>
+    <button id="blindReset">Discard this test</button>
+  </div>
+  <p class="bazimeta" id="blindMsg"></p>
+  <textarea id="blindPacket" readonly rows="12" aria-label="Blind packet"></textarea>
+  <div id="blindScore"></div>
+</section>
+
 <footer>Engines: astronomy-engine (planets, angles, sidereal), lunar-javascript (pillars), iztro (palaces). Jyotish: Lahiri ayanamsa, in-house. All calculation runs in your browser; saved charts live in this device's localStorage only.</footer>
 
 <script src="astronomy.browser.min.js"></script>
 <script src="lunar.js"></script>
 <script src="iztro.min.js"></script>
-<script src="app.js?v=11"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>
